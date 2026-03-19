@@ -1,232 +1,179 @@
-# Substrate Node Template
+# Zero Chain
 
-A fresh [Substrate](https://substrate.io/) node, ready for hacking :rocket:
+A blockchain where the people running the network are as invisible as the transactions on it.
 
-A standalone version of this template is available for each release of Polkadot
-in the [Substrate Developer Hub Parachain
-Template](https://github.com/substrate-developer-hub/substrate-node-template/)
-repository. The parachain template is generated directly at each Polkadot
-release branch from the [Solochain Template in
-Substrate](https://github.com/paritytech/polkadot-sdk/tree/master/templates/solochain)
-upstream
+Every privacy blockchain out there hides what users send to each other. Fine. But the validators processing those transactions? Completely visible. You can find Monero miners on the public internet. You can map the Zcash network. If someone wants to attack the chain, they don't need to break the math. They just need to find the validators.
 
-It is usually best to use the stand-alone version to start a new project. All
-bugs, suggestions, and feature requests should be made upstream in the
-[Substrate](https://github.com/paritytech/polkadot-sdk/tree/master/substrate)
-repository.
+Zero Chain is our answer to that. Validators prove they belong to the network using zero-knowledge proofs. No identities, no IP addresses linked to public keys, no list of targets for anyone to go after.
 
-## Getting Started
+## What it does
 
-Depending on your operating system and Rust version, there might be additional
-packages required to compile this template. Check the
-[Install](https://docs.substrate.io/install/) instructions for your platform for
-the most common dependencies. Alternatively, you can use one of the [alternative
-installation](#alternatives-installations) options.
+Three things, none of which exist together in any other chain right now:
 
-Fetch solochain template code:
+**Private transactions.** A user sends value and nobody can see who sent it, who received it, or how much moved. We use Groth16 proofs over BN254 for this, same family of cryptography as Zcash shielded transactions.
 
-```sh
-git clone https://github.com/paritytech/polkadot-sdk-solochain-template.git solochain-template
+**Anonymous validators.** The machines producing blocks can't be identified. Each validator proves it belongs to the active set using a Halo2 membership proof. The proof says "I'm one of you" without saying which one.
 
-cd solochain-template
+**Verified state lineage.** This is the ZK-ORIGIN piece. Every state change on the chain carries a recursive proof (Nova folding) that traces it back to a legitimate origin. Bridges between blockchains have lost over $2 billion because chains could verify a message was formatted correctly but couldn't verify it actually came from where it said it did. ZK-ORIGIN fixes that problem.
+
+## Where things stand
+
+This repo has the working solochain base. Substrate chain, compiles, produces blocks, consensus works. We're building the ZK pallets and circuits on top of this right now.
+
+Prototype goal: a private transaction proved off-chain and verified on-chain, running on a three-node devnet.
+
+## Tech stack
+
+Rust. Substrate (from the Polkadot SDK) as the blockchain framework. arkworks for Groth16 transaction proofs. Halo2 for validator membership proofs. Nova for the recursive state lineage system. Poseidon for hashing inside circuits (way cheaper than SHA-256 in ZK). AURA and GRANDPA for consensus during the prototype phase.
+
+## Setup
+
+### Prerequisites (all platforms)
+
+- Rust 1.93 or newer (stable)
+- The `wasm32-unknown-unknown` Rust target
+- Git
+- A C/C++ compiler
+- 16 GB RAM minimum. 32 GB recommended. Substrate compilation alone eats 8-12 GB.
+- 50 GB free disk space. Rust build artifacts for Substrate fill up 30-50 GB over time.
+
+### macOS
+
+Get Homebrew if you don't already have it:
+
+```
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-### Build
+Install the dependencies:
 
-🔨 Use the following command to build the node without launching it:
+```
+brew install llvm cmake protobuf
+```
 
-```sh
+This next part is important. RocksDB (the database Substrate uses) needs to find the LLVM libraries. If you skip this, the build will fail with a `libclang.dylib not found` error and it will be confusing.
+
+For Apple Silicon Macs (M1, M2, M3, M4):
+
+```
+echo 'export LIBCLANG_PATH="/opt/homebrew/opt/llvm/lib"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+For Intel Macs:
+
+```
+echo 'export LIBCLANG_PATH="/usr/local/opt/llvm/lib"' >> ~/.zshrc
+source ~/.zshrc
+```
+
+Install Rust if you don't have it:
+
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+rustup target add wasm32-unknown-unknown
+```
+
+### Linux (Ubuntu / Debian)
+
+```
+sudo apt update
+sudo apt install -y build-essential git clang curl libssl-dev llvm libudev-dev protobuf-compiler pkg-config cmake
+```
+
+Then Rust:
+
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+rustup target add wasm32-unknown-unknown
+```
+
+### Linux (Fedora / RHEL)
+
+```
+sudo dnf install -y git clang curl openssl-devel llvm protobuf-compiler cmake pkg-config
+sudo dnf group install -y "C Development Tools and Libraries"
+```
+
+Then Rust:
+
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source ~/.cargo/env
+rustup target add wasm32-unknown-unknown
+```
+
+### Windows
+
+Native Windows doesn't work. Use WSL2.
+
+```
+wsl --install
+```
+
+Restart your machine, open the Ubuntu terminal that shows up, and follow the Ubuntu instructions above. Everything runs inside WSL from there.
+
+If you use VS Code, grab the "Remote - WSL" extension so you can edit files inside the WSL filesystem from your normal editor.
+
+### Clone and build
+
+```
+git clone https://github.com/Maheshsiddu29/ZeroChain.git
+cd ZeroChain
 cargo build --release
 ```
 
-### Embedded Docs
+First build takes 15 to 30 minutes. That is normal. Substrate pulls in around 1200 crates. After the first build, only changed code recompiles so it gets much faster.
 
-After you build the project, you can use the following command to explore its
-parameters and subcommands:
+### Run it
 
-```sh
-./target/release/solochain-template-node -h
 ```
-
-You can generate and view the [Rust
-Docs](https://doc.rust-lang.org/cargo/commands/cargo-doc.html) for this template
-with this command:
-
-```sh
-cargo +nightly doc --open
-```
-
-### Single-Node Development Chain
-
-The following command starts a single-node development chain that doesn't
-persist state:
-
-```sh
 ./target/release/solochain-template-node --dev
 ```
 
-To purge the development chain's state, run the following command:
+If it's working you'll see blocks coming in every few seconds:
 
-```sh
-./target/release/solochain-template-node purge-chain --dev
+```
+🏆 Imported #1 (0x0d7f...0530 -> 0xd7f3...5a61)
+🏆 Imported #2 (0xd7f3...5a61 -> 0x8de3...cdcb)
+🏆 Imported #3 (0x8de3...cdcb -> 0x186a...e864)
 ```
 
-To start the development chain with detailed logging, run the following command:
+Ctrl+C to stop.
 
-```sh
-RUST_BACKTRACE=1 ./target/release/solochain-template-node -ldebug --dev
+### Block explorer
+
+While the chain is running, open this in a browser:
+
+```
+https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9944
 ```
 
-Development chains:
+Lets you look at blocks, submit transactions, read storage, and watch events.
 
-- Maintain state in a `tmp` folder while the node is running.
-- Use the **Alice** and **Bob** accounts as default validator authorities.
-- Use the **Alice** account as the default `sudo` account.
-- Are preconfigured with a genesis state (`/node/src/chain_spec.rs`) that
-  includes several pre-funded development accounts.
+## Project layout
 
-
-To persist chain state between runs, specify a base path by running a command
-similar to the following:
-
-```sh
-// Create a folder to use as the db base path
-$ mkdir my-chain-state
-
-// Use of that folder to store the chain state
-$ ./target/release/solochain-template-node --dev --base-path ./my-chain-state/
-
-// Check the folder structure created inside the base path after running the chain
-$ ls ./my-chain-state
-chains
-$ ls ./my-chain-state/chains/
-dev
-$ ls ./my-chain-state/chains/dev
-db keystore network
+```
+zerochain/
+  node/          -- the binary that runs the chain
+  runtime/       -- on-chain logic compiled to WASM
+  pallets/
+    template/    -- starter pallet (getting replaced with our custom ones)
 ```
 
-### Connect with Polkadot-JS Apps Front-End
+We're adding these next:
 
-After you start the node template locally, you can interact with it using the
-hosted version of the [Polkadot/Substrate
-Portal](https://polkadot.js.org/apps/#/explorer?rpc=ws://localhost:9944)
-front-end by connecting to the local node endpoint. A hosted version is also
-available on [IPFS](https://dotapps.io/). You can
-also find the source code and instructions for hosting your own instance in the
-[`polkadot-js/apps`](https://github.com/polkadot-js/apps) repository.
+- `pallets/proof-verifier` -- verifies Groth16, Halo2, and Nova proofs on-chain
+- `pallets/shielded-assets` -- private transfers using commitment trees and nullifiers
+- `pallets/zk-validator` -- anonymous validator set with ZK membership proofs
 
-### Multi-Node Local Testnet
+## Common build problems
 
-If you want to see the multi-node consensus algorithm in action, see [Simulate a
-network](https://docs.substrate.io/tutorials/build-a-blockchain/simulate-network/).
+**`libclang.dylib not found` on macOS**
 
-## Template Structure
+LLVM isn't installed or the path isn't set. Run:
 
-A Substrate project such as this consists of a number of components that are
-spread across a few directories.
-
-### Node
-
-A blockchain node is an application that allows users to participate in a
-blockchain network. Substrate-based blockchain nodes expose a number of
-capabilities:
-
-- Networking: Substrate nodes use the [`libp2p`](https://libp2p.io/) networking
-  stack to allow the nodes in the network to communicate with one another.
-- Consensus: Blockchains must have a way to come to
-  [consensus](https://docs.substrate.io/fundamentals/consensus/) on the state of
-  the network. Substrate makes it possible to supply custom consensus engines
-  and also ships with several consensus mechanisms that have been built on top
-  of [Web3 Foundation
-  research](https://research.web3.foundation/Polkadot/protocols/NPoS).
-- RPC Server: A remote procedure call (RPC) server is used to interact with
-  Substrate nodes.
-
-There are several files in the `node` directory. Take special note of the
-following:
-
-- [`chain_spec.rs`](./node/src/chain_spec.rs): A [chain
-  specification](https://docs.substrate.io/build/chain-spec/) is a source code
-  file that defines a Substrate chain's initial (genesis) state. Chain
-  specifications are useful for development and testing, and critical when
-  architecting the launch of a production chain. Take note of the
-  `development_config` and `testnet_genesis` functions. These functions are
-  used to define the genesis state for the local development chain
-  configuration. These functions identify some [well-known
-  accounts](https://docs.substrate.io/reference/command-line-tools/subkey/) and
-  use them to configure the blockchain's initial state.
-- [`service.rs`](./node/src/service.rs): This file defines the node
-  implementation. Take note of the libraries that this file imports and the
-  names of the functions it invokes. In particular, there are references to
-  consensus-related topics, such as the [block finalization and
-  forks](https://docs.substrate.io/fundamentals/consensus/#finalization-and-forks)
-  and other [consensus
-  mechanisms](https://docs.substrate.io/fundamentals/consensus/#default-consensus-models)
-  such as Aura for block authoring and GRANDPA for finality.
-
-
-### Runtime
-
-In Substrate, the terms "runtime" and "state transition function" are analogous.
-Both terms refer to the core logic of the blockchain that is responsible for
-validating blocks and executing the state changes they define. The Substrate
-project in this repository uses
-[FRAME](https://docs.substrate.io/learn/runtime-development/#frame) to construct
-a blockchain runtime. FRAME allows runtime developers to declare domain-specific
-logic in modules called "pallets". At the heart of FRAME is a helpful [macro
-language](https://docs.substrate.io/reference/frame-macros/) that makes it easy
-to create pallets and flexibly compose them to create blockchains that can
-address [a variety of needs](https://substrate.io/ecosystem/projects/).
-
-Review the [FRAME runtime implementation](./runtime/src/lib.rs) included in this
-template and note the following:
-
-- This file configures several pallets to include in the runtime. Each pallet
-  configuration is defined by a code block that begins with `impl
-  $PALLET_NAME::Config for Runtime`.
-- The pallets are composed into a single runtime by way of the
-  [#[runtime]](https://paritytech.github.io/polkadot-sdk/master/frame_support/attr.runtime.html)
-  macro, which is part of the [core FRAME pallet
-  library](https://docs.substrate.io/reference/frame-pallets/#system-pallets).
-
-### Pallets
-
-The runtime in this project is constructed using many FRAME pallets that ship
-with [the Substrate
-repository](https://github.com/paritytech/polkadot-sdk/tree/master/substrate/frame) and a
-template pallet that is [defined in the
-`pallets`](./pallets/template/src/lib.rs) directory.
-
-A FRAME pallet is comprised of a number of blockchain primitives, including:
-
-- Storage: FRAME defines a rich set of powerful [storage
-  abstractions](https://docs.substrate.io/build/runtime-storage/) that makes it
-  easy to use Substrate's efficient key-value database to manage the evolving
-  state of a blockchain.
-- Dispatchables: FRAME pallets define special types of functions that can be
-  invoked (dispatched) from outside of the runtime in order to update its state.
-- Events: Substrate uses
-  [events](https://docs.substrate.io/build/events-and-errors/) to notify users
-  of significant state changes.
-- Errors: When a dispatchable fails, it returns an error.
-
-Each pallet has its own `Config` trait which serves as a configuration interface
-to generically define the types and parameters it depends on.
-
-## Alternatives Installations
-
-Instead of installing dependencies and building this source directly, consider
-the following alternatives.
-
-### Nix
-
-Install [nix](https://nixos.org/) and
-[nix-direnv](https://github.com/nix-community/nix-direnv) for a fully
-plug-and-play experience for setting up the development environment. To get all
-the correct dependencies, activate direnv `direnv allow`.
-
-### Docker
-
-Please follow the [Substrate Docker instructions
-here](https://github.com/paritytech/polkadot-sdk/blob/master/substrate/docker/README.md) to
-build the Docker container with the Substrate Node Template binary.
+```
+brew install llvm
