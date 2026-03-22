@@ -1,5 +1,5 @@
 [workspace]
-members = ["node", "runtime", "pallets/template"]
+members = ["node", "runtime", "pallets/template","primitives/zk-types"]
 resolver = "2"
 
 [workspace.package]
@@ -63,6 +63,7 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-s
 frame-try-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 
+zk-types = { path = "primitives/zk-types", default-features = false }
 # Pallets
 pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }

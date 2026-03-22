@@ -1,0 +1,21 @@
+[package]
+name = "zk-types"
+description = "Shared type definitions for Zero Chain ZK proof systems. This crate is the interface contract between the off-chain prover, on-chain verifier pallets, and CLI tooling."
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.6", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11", default-features = false, features = ["derive"] }
+
+[dev-dependencies]
+codec = { package = "parity-scale-codec", version = "3.6", features = ["derive"] }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+]
