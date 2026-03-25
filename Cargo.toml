@@ -86,10 +86,10 @@ substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk.git
 clap = { version = "4.5", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "3.6", default-features = false, features = ["derive"] }
 color-print = "0.3.6"
-docify = "0.2"
+docify = "0.4.1"
 futures = { version = "0.3", features = ["thread-pool"] }
-hex-literal = "0.4"
-jsonrpsee = { version = "0.24", features = ["server"] }
+hex-literal = "1.1.0"
+jsonrpsee = { version = "0.26", features = ["server"] }
 log = { version = "0.4", default-features = false }
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 scale-info = { version = "2.11", default-features = false, features = ["derive"] }

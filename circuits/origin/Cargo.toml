@@ -1,0 +1,16 @@
+[package]
+name = "origin-circuit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+nova-snark = "0.68.0"
+ark-ff = "0.5.0"
+ark-bn254 = "0.5"
+ark-std = "0.5.0"
+
+crypto = { path = "../../crypto" }
+zk-types = { path = "../../primitives/zk-types", default-features = false }
+
+[dev-dependencies]
+criterion = "0.8.2"

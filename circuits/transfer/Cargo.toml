@@ -1,0 +1,33 @@
+[package]
+name = "transfer-circuit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Arkworks for Groth16
+ark-ff = "0.5.0"
+ark-ec = "0.5.0"
+ark-bn254 = "0.5.0"
+ark-groth16 = "0.5.0"
+ark-r1cs-std = "0.5.0"
+ark-relations = "0.5.0"
+ark-serialize = "0.5.0"
+ark-std = "0.5.0"
+
+# Poseidon hash (from crypto crate - we'll create this)
+crypto = { path = "../../crypto" }
+
+# Primitives (interface contract)
+zk-types = { path = "../../primitives/zk-types", default-features = false }
+
+# Utilities
+hex = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+criterion = "0.8.2"
+
+[[bench]]
+name = "prove_bench"
+harness = false
