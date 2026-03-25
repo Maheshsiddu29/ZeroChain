@@ -189,6 +189,13 @@ pub enum VerifyingKey {
     Nova(Vec<u8>),
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+pub struct ShieldedTransferData {
+    pub proof: Groth16Proof,
+    pub inputs: TransferPublicInputs,
+}
+
+
 
 //Proof Submission (the extrinsic payload)
 
@@ -205,10 +212,9 @@ pub enum ProofSubmission {
     //A shielded transfer proof.
     //Verified by: arkworks Groth16 verifier
     //Then processed by: pallet-shielded-assets (update nullifiers + commitments)
-    ShieldedTransfer {
-        proof: Groth16Proof,
-        inputs: TransferPublicInputs,
-    },
+    ShieldedTransfer (
+        Box<ShieldedTransferData>,
+    ),
 
     //A validator membership proof.
     //Verified by: Halo2 verifier
@@ -296,35 +302,35 @@ mod tests {
         assert_eq!(inputs, decoded);
     }
 
-    #[test]
-    fn proof_submission_dispatch_variant() {
-        let submission = ProofSubmission::ShieldedTransfer {
-            proof: Groth16Proof {
-                a: [1u8; G1_UNCOMPRESSED_SIZE],
-                b: [2u8; G2_UNCOMPRESSED_SIZE],
-                c: [3u8; G1_UNCOMPRESSED_SIZE],
-            },
-            inputs: TransferPublicInputs {
-                merkle_root: [0xAA; 32],
-                nullifiers: vec![[0xBB; 32]],
-                output_commitments: vec![[0xCC; 32]],
-                asset_id: NATIVE_ASSET_ID,
-                fee_commitment: [0xFF; 32],
-            },
-        };
-        let encoded = submission.encode();
-        let decoded = ProofSubmission::decode(&mut &encoded[..]).unwrap();
-        assert_eq!(submission, decoded);
+   #[test]
+fn proof_submission_dispatch_variant() {
+    let submission = ProofSubmission::ShieldedTransfer(Box::new(ShieldedTransferData {
+        proof: Groth16Proof {
+            a: [1u8; G1_UNCOMPRESSED_SIZE],
+            b: [2u8; G2_UNCOMPRESSED_SIZE],
+            c: [3u8; G1_UNCOMPRESSED_SIZE],
+        },
+        inputs: TransferPublicInputs {
+            merkle_root: [0xAA; 32],
+            nullifiers: vec![[0xBB; 32]],
+            output_commitments: vec![[0xCC; 32]],
+            asset_id: NATIVE_ASSET_ID,
+            fee_commitment: [0xFF; 32],
+        },
+    }));
+    let encoded = submission.encode();
+    let decoded = ProofSubmission::decode(&mut &encoded[..]).unwrap();
+    assert_eq!(submission, decoded);
 
-        //Verify we can match on the variant
-        match decoded {
-            ProofSubmission::ShieldedTransfer { proof, inputs } => {
-                assert_eq!(proof.a[0], 1);
-                assert_eq!(inputs.nullifiers.len(), 1);
-            }
-            _ => panic!("wrong variant"),
+    //Verify we can match on the variant
+    match decoded {
+        ProofSubmission::ShieldedTransfer(data) => {
+            assert_eq!(data.proof.a[0], 1);
+            assert_eq!(data.inputs.nullifiers.len(), 1);
         }
+        _ => panic!("wrong variant"),
     }
+}
 
     #[test]
     fn membership_public_inputs_round_trip() {

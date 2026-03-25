@@ -1,5 +1,12 @@
 [workspace]
-members = ["node", "runtime", "pallets/template","primitives/zk-types"]
+members = [
+    "node",
+    "runtime",
+    "pallets/template",
+    "primitives/zk-types",
+
+    "crypto"
+]
 resolver = "2"
 
 [workspace.package]
@@ -17,7 +24,9 @@ correctness = { level = "warn", priority = 1 }
 complexity = { level = "warn", priority = 1 }
 
 [workspace.dependencies]
-# Substrate client
+# ============================================
+# SUBSTRATE CLIENT DEPENDENCIES
+# ============================================
 sc-basic-authorship = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 sc-cli = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 sc-client-api = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
@@ -32,7 +41,9 @@ sc-telemetry = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "
 sc-transaction-pool = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 sc-transaction-pool-api = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 
-# Substrate primitives
+# ============================================
+# SUBSTRATE PRIMITIVES
+# ============================================
 sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-block-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
@@ -51,7 +62,9 @@ sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "
 sp-transaction-pool = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-version = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 
+# ============================================
 # FRAME
+# ============================================
 frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 frame-benchmarking-cli = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 frame-executive = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
@@ -63,8 +76,16 @@ frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-s
 frame-try-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 substrate-frame-rpc-system = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 
+# ============================================
+# LOCAL CRATES
+# ============================================
 zk-types = { path = "primitives/zk-types", default-features = false }
-# Pallets
+zc-crypto = { path = "crypto", default-features = false }
+zc-membership-circuit = { path = "circuits/membership", default-features = false }
+
+# ============================================
+# PALLETS
+# ============================================
 pallet-aura = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 pallet-grandpa = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
@@ -73,26 +94,59 @@ pallet-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", rev
 pallet-transaction-payment = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
-
-# Local
 pallet-template = { path = "pallets/template", default-features = false }
 solochain-template-runtime = { path = "runtime" }
 
-# Build
+# ============================================
+# BUILD DEPENDENCIES
+# ============================================
 substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 substrate-wasm-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 
-# Third party
+# ============================================
+# CRYPTOGRAPHY - ARKWORKS (for ZK circuits)
+# ============================================
+ark-ff = { version = "0.4.2", default-features = false }
+ark-ec = { version = "0.4.2", default-features = false }
+ark-bn254 = { version = "0.4.0", default-features = false, features = ["curve"] }
+ark-groth16 = { version = "0.4.0", default-features = false }
+ark-r1cs-std = { version = "0.4.0", default-features = false }
+ark-relations = { version = "0.4.0", default-features = false }
+ark-serialize = { version = "0.4.2", default-features = false }
+ark-std = { version = "0.4.0", default-features = false }
+ark-crypto-primitives = { version = "0.4.0", default-features = false, features = ["sponge"] }
+
+# ============================================
+# CRYPTOGRAPHY - HALO2 (for membership circuit)
+# ============================================
+halo2_proofs = { version = "0.3.0", default-features = false }
+halo2curves = { version = "0.6.0", default-features = false }
+
+# ============================================
+# THIRD PARTY
+# ============================================
 clap = { version = "4.5", features = ["derive"] }
 codec = { package = "parity-scale-codec", version = "3.6", default-features = false, features = ["derive"] }
 color-print = "0.3.6"
 docify = "0.4.1"
 futures = { version = "0.3", features = ["thread-pool"] }
+
 hex-literal = "1.1.0"
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
 jsonrpsee = { version = "0.26", features = ["server"] }
+
+
+
 log = { version = "0.4", default-features = false }
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 scale-info = { version = "2.11", default-features = false, features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 smallvec = "1.13"
+thiserror = "1.0"
+anyhow = "1.0"
+tokio = { version = "1.36", features = ["full"] }
+subxt = "0.34"
+rand = { version = "0.8", default-features = false }
+zeroize = { version = "1.7", default-features = false, features = ["derive"] }
+subtle = { version = "2.5", default-features = false }
