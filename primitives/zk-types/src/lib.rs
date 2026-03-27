@@ -4,6 +4,7 @@
 
 extern crate alloc;
 use alloc::vec::Vec;
+use alloc::boxed::Box;
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 

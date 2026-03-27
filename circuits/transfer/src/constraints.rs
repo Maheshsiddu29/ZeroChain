@@ -1,7 +1,7 @@
 //! Constraint gadgets for the TransferCircuit
 
 use super::*;
-use ark_r1cs_std::prelude::*;
+use ark_r1cs_std::fields::fp::FpVar;
 use ark_relations::r1cs::SynthesisError;
 use ark_bn254::Fr;
 
@@ -64,65 +64,46 @@ impl MerklePathVar {
     }
 }
 
-/// Compute note commitment using Poseidon hash
-/// commitment = Poseidon(value, asset_id, blinding, owner_pubkey)
+/// Compute note commitment (simplified placeholder)
 pub fn compute_commitment(note: &NoteVar) -> Result<FpVar<Fr>, SynthesisError> {
-    // This calls the Poseidon gadget from crypto/ crate
-    // For now, simplified as a placeholder
-    
-    use crypto::poseidon::PoseidonGadget;
-    
-    let inputs = vec![
-        note.value.clone(),
-        note.asset_id.clone(),
-        note.blinding.clone(),
-        note.owner_pubkey.clone(),
-    ];
-    
-    PoseidonGadget::hash(&inputs)
+    // TODO: Implement actual Poseidon gadget
+    // For now, just return a simple combination
+    Ok(&note.value + &note.asset_id + &note.blinding + &note.owner_pubkey)
 }
 
-/// Compute nullifier = Poseidon(commitment, secret_key)
+/// Compute nullifier (simplified placeholder)
 pub fn compute_nullifier(
     commitment: &FpVar<Fr>,
     secret_key: &FpVar<Fr>,
 ) -> Result<FpVar<Fr>, SynthesisError> {
-    use crypto::poseidon::PoseidonGadget;
-    
-    let inputs = vec![commitment.clone(), secret_key.clone()];
-    PoseidonGadget::hash(&inputs)
+    // TODO: Implement actual Poseidon gadget
+    Ok(commitment + secret_key)
 }
 
-/// Verify Merkle path from leaf to root
+/// Verify Merkle path (simplified placeholder)
 pub fn verify_merkle_path(
     note: &NoteVar,
     path: &MerklePathVar,
 ) -> Result<FpVar<Fr>, SynthesisError> {
-    use crypto::poseidon::PoseidonGadget;
-    
     let mut current_hash = compute_commitment(note)?;
     
     for (sibling, is_right) in path.path.iter().zip(path.indices.iter()) {
-        // If is_right == true: hash(sibling, current)
-        // If is_right == false: hash(current, sibling)
+        let left = FpVar::conditionally_select(is_right, sibling, &current_hash)?;
+        let right = FpVar::conditionally_select(is_right, &current_hash, sibling)?;
         
-        let (left, right) = (
-            FpVar::conditionally_select(is_right, sibling, &current_hash)?,
-            FpVar::conditionally_select(is_right, &current_hash, sibling)?,
-        );
-        
-        current_hash = PoseidonGadget::hash(&vec![left, right])?;
+        // TODO: Use actual Poseidon hash
+        current_hash = &left + &right;
     }
     
     Ok(current_hash)
 }
 
-/// Sum values from notes (for balance check)
+/// Sum values from notes
 pub fn sum_values(notes: &[NoteVar]) -> Result<FpVar<Fr>, SynthesisError> {
-    let mut sum = FpVar::zero();
+    let mut sum = FpVar::constant(Fr::from(0u64));
     
     for note in notes {
-        sum += &note.value;
+        sum = &sum + &note.value;
     }
     
     Ok(sum)
@@ -145,9 +126,8 @@ mod tests {
         };
         
         let note_var = NoteVar::new_witness(cs.clone(), || Ok(note)).unwrap();
-        let commitment = compute_commitment(&note_var).unwrap();
+        let _commitment = compute_commitment(&note_var).unwrap();
         
         assert!(cs.is_satisfied().unwrap());
-        println!("Commitment computed: {:?}", commitment.value());
     }
 }

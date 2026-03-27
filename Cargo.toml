@@ -4,8 +4,10 @@ members = [
     "runtime",
     "pallets/template",
     "primitives/zk-types",
-
-    "crypto"
+    "circuits/transfer",
+    "circuits/origin",
+    "crypto",
+    "prover"
 ]
 resolver = "2"
 
@@ -131,9 +133,11 @@ color-print = "0.3.6"
 docify = "0.4.1"
 futures = { version = "0.3", features = ["thread-pool"] }
 
+
 hex-literal = "1.1.0"
 hex = { version = "0.4", default-features = false, features = ["alloc"] }
 jsonrpsee = { version = "0.26", features = ["server"] }
+
 
 
 
