@@ -2,7 +2,7 @@
 //!
 //! commitment = Poseidon(value, blinding_factor)
 
-#![cfg_attr(not(feature = "std"), no_std)]
+//#![cfg_attr(not(feature = "std"), no_std)]
 
 use ark_bn254::Fr;
 use crate::poseidon::PoseidonHasher;
