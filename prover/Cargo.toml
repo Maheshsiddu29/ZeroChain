@@ -1,47 +1,52 @@
 [package]
-name = "zero-chain-prover"
+name = "zk-prover"
 version = "0.1.0"
 edition = "2021"
+description = "Zero Chain ZK Proof Generator"
 
 [[bin]]
-name = "prover"
+name = "zk-prover"
 path = "src/main.rs"
 
 [dependencies]
-# Your circuits
-transfer-circuit = { path = "../circuits/transfer" }
-origin-circuit = { path = "../circuits/origin" }
-
-# Crypto
-zc-crypto = { workspace = true }
-zk-types = { workspace = true }
-
-# Arkworks for Groth16
-ark-bn254 = "0.5"
-ark-groth16 = "0.5"
-ark-serialize = "0.5"
-ark-std = { version = "0.5", features = ["std"] }  # Add std feature
-ark-ff = "0.5"
-ark-snark = "0.5"  # ADD THIS
-
 # CLI
-clap = { version = "4.5", features = ["derive"] }
+clap = { version = "4.4", features = ["derive"] }
+env_logger = "0.10"
+log = "0.4"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 hex = "0.4"
 
-# File I/O
-bincode = "1.3"
+# SCALE codec for zk-types
+codec = { package = "parity-scale-codec", version = "3.6", features = ["derive"] }
 
-# Logging
-env_logger = "0.11"
-log = "0.4"
+# ZK primitives
+ark-ff = "0.4"
+ark-ec = "0.4"
+ark-bn254 = "0.4"
+ark-groth16 = "0.4"
+ark-serialize = "0.4"
+ark-snark = "0.4"
+ark-std = "0.4"
+ark-relations = "0.4"
 
-# Error handling
-anyhow = "1.0"
-thiserror = "1.0"
+# Nova for ZK-ORIGIN
+nova-snark = { version = "0.31", optional = true }
+
+# Local dependencies
+zk-types = { path = "../primitives/zk-types" }
+circuits-transfer = { path = "../circuits/transfer" }
+circuits-origin = { path = "../circuits/origin", optional = true }
+crypto = { path = "../crypto" }
+
+# Randomness
+rand = "0.8"
+
+[features]
+default = []
+origin = ["nova-snark", "circuits-origin"]
 
 [dev-dependencies]
-tempfile = "3.10"
+tempfile = "3"
