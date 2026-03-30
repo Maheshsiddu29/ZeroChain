@@ -2,7 +2,7 @@
 //!
 //! Uses ark-crypto-primitives Poseidon sponge
 
-//#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
 use ark_bn254::Fr;
 use ark_ff::PrimeField;
