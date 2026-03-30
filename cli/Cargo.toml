@@ -1,0 +1,43 @@
+[package]
+name = "zero-chain-cli"
+version = "0.1.0"
+edition = "2021"
+description = "Zero Chain Command Line Interface"
+
+[[bin]]
+name = "zero-chain"
+path = "src/main.rs"
+
+[dependencies]
+# CLI framework
+clap = { version = "4.4", features = ["derive"] }
+
+# Async runtime
+tokio = { version = "1.35", features = ["full"] }
+
+# HTTP client
+reqwest = { version = "0.11", features = ["json"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hex = "0.4"
+
+# Logging
+env_logger = "0.10"
+log = "0.4"
+
+# Color output
+colored = "2.1"
+
+# Error handling
+anyhow = "1.0"
+
+# Local dependencies
+zc-crypto = { path = "../crypto" }
+
+# Random
+rand = { version = "0.8", features = ["std", "std_rng"] }
+
+# Zeroize for secret handling
+zeroize = "1.7"

@@ -147,6 +147,7 @@ Ctrl+C to stop.
 
 While the chain is running, open this in a browser:
 
+
 ```
 https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9944
 ```

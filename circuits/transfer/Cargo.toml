@@ -2,31 +2,28 @@
 name = "transfer-circuit"
 version = "0.1.0"
 edition = "2021"
-description = "Groth16 shielded transfer circuit for Zero Chain"
-license = "BUSL-1.1"
+description = "Shielded transfer circuit for Zero Chain"
 
 [dependencies]
-# Arkworks for Groth16
+# ZK primitives
 ark-ff = { workspace = true }
 ark-ec = { workspace = true }
 ark-bn254 = { workspace = true }
-ark-groth16 = { workspace = true }
-ark-r1cs-std = { workspace = true }
-ark-relations = { workspace = true }
 ark-serialize = { workspace = true }
 ark-std = { workspace = true }
+ark-relations = { workspace = true }
+ark-r1cs-std = { workspace = true }
 
-# Local crates
-zc-crypto = { workspace = true }
-zk-types = { workspace = true }
-
-# Utilities
-hex = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
+# Hashing (for native commitment/nullifier computation)
+sha2 = "0.10"
 
 [dev-dependencies]
-rand = { workspace = true }
+ark-groth16 = { workspace = true }
+ark-snark = { workspace = true }
+rand = { version = "0.8", features = ["std", "std_rng"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hex = "0.4"
 
 [features]
 default = ["std"]
@@ -34,9 +31,8 @@ std = [
     "ark-ff/std",
     "ark-ec/std",
     "ark-bn254/std",
-    "ark-groth16/std",
-    "ark-r1cs-std/std",
-    "ark-relations/std",
     "ark-serialize/std",
     "ark-std/std",
+    "ark-relations/std",
+    "ark-r1cs-std/std",
 ]

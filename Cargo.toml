@@ -6,7 +6,9 @@ members = [
     "primitives/zk-types",
     "circuits/transfer",
     "circuits/origin",
+    "circuits/membership",
     "crypto",
+    "cli",
     "prover"
 ]
 resolver = "2"
@@ -117,6 +119,7 @@ ark-relations = { version = "0.4.0", default-features = false }
 ark-serialize = { version = "0.4.2", default-features = false }
 ark-std = { version = "0.4.0", default-features = false }
 ark-crypto-primitives = { version = "0.4.0", default-features = false, features = ["sponge"] }
+ark-snark = { version = "0.4", default-features = false }
 
 # ============================================
 # CRYPTOGRAPHY - HALO2 (for membership circuit)

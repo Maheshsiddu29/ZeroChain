@@ -1,12 +1,19 @@
 //! ZK-ORIGIN proof generation
+//!
+//! Currently uses a placeholder since Nova requires ark 0.5.x
 
-use origin_circuit::ZkOriginAccumulator;
 use ark_bn254::Fr;
-use ark_serialize::CanonicalDeserialize;
+use ark_ff::{PrimeField, BigInteger};
 use std::path::Path;
 use anyhow::{Result, Context};
 
+// Import the step circuit (which is what origin_circuit currently exports)
+use origin_circuit::step_circuit::StateTransitionCircuit;
+
 /// Generate ZK-ORIGIN proof
+///
+/// Currently produces a placeholder proof since Nova IVC requires
+/// ark 0.5.x but the workspace uses ark 0.4.x.
 pub fn generate_origin_proof(
     prev_state_hex: &str,
     new_state_hex: &str,
@@ -14,76 +21,60 @@ pub fn generate_origin_proof(
     tx_hash_hex: &str,
     accumulator_path: &Path,
 ) -> Result<serde_json::Value> {
-    println!(" Loading accumulator...");
-    
-    // Load or create accumulator
-    let mut accumulator = if accumulator_path.exists() {
-        let bytes = std::fs::read(accumulator_path)
-            .context("Failed to read accumulator file")?;
-        ZkOriginAccumulator::from_bytes(&bytes)
-            .map_err(|e| anyhow::anyhow!("Failed to deserialize accumulator: {}", e))?
-    } else {
-        println!("   No existing accumulator, creating new one");
-        let genesis = hex_to_fr(prev_state_hex)?;
-        ZkOriginAccumulator::genesis(genesis)
-    };
-    
-    println!("   Current height: {}", accumulator.current_height);
-    
+    log::info!("Generating ZK-ORIGIN proof...");
+
     // Parse inputs
     let prev_state = hex_to_fr(prev_state_hex)?;
     let new_state = hex_to_fr(new_state_hex)?;
-    let tx_hash = hex_to_fr(tx_hash_hex)?;
-    
-    println!("\n Folding block {}...", height);
-    
-    // Fold new block
-    accumulator.fold_block(prev_state, new_state, height, tx_hash)
-        .map_err(|e| anyhow::anyhow!("Failed to fold block: {}", e))?;
-    
-    println!("   Block folded");
-    
-    // Verify
-    println!("\n Verifying chain...");
-    accumulator.verify()
-        .map_err(|e| anyhow::anyhow!("Verification failed: {}", e))?;
-    println!("   Chain valid");
-    
-    // Compress
-    println!("\n Compressing proof...");
-    let compressed = accumulator.compress()
-        .map_err(|e| anyhow::anyhow!("Compression failed: {}", e))?;
-    println!("   Compressed to {} bytes", compressed.len());
-    
-    // Save accumulator for next block
-    println!("\n Saving accumulator...");
-    let acc_bytes = accumulator.to_bytes()
-        .map_err(|e| anyhow::anyhow!("Failed to serialize accumulator: {}", e))?;
-    std::fs::write(accumulator_path, acc_bytes)
+    let _tx_hash = hex_to_fr(tx_hash_hex)?;
+
+    log::info!("  Block height: {}", height);
+    log::info!("  Prev state: {}", prev_state_hex);
+    log::info!("  New state: {}", new_state_hex);
+
+    // Create the step circuit (for future Nova integration)
+    let _step = StateTransitionCircuit::new(prev_state, new_state, height);
+
+    // Build placeholder proof data
+    let mut proof_bytes = Vec::new();
+    proof_bytes.extend_from_slice(&height.to_le_bytes());
+    proof_bytes.extend_from_slice(&prev_state.into_bigint().to_bytes_le());
+    proof_bytes.extend_from_slice(&new_state.into_bigint().to_bytes_le());
+
+    // Save accumulator state
+    if let Some(parent) = accumulator_path.parent() {
+        std::fs::create_dir_all(parent).ok();
+    }
+    std::fs::write(accumulator_path, &proof_bytes)
         .context("Failed to save accumulator")?;
-    println!("   Saved to {}", accumulator_path.display());
-    
-    // Return proof as JSON
+
+    log::info!("  Proof size: {} bytes (placeholder)", proof_bytes.len());
+    log::warn!("  Note: Full Nova IVC not yet implemented (requires ark 0.5.x)");
+
     Ok(serde_json::json!({
         "proof_type": "ZK-ORIGIN",
+        "status": "placeholder",
         "block_height": height,
         "prev_state_root": prev_state_hex,
         "new_state_root": new_state_hex,
-        "proof_bytes": hex::encode(&compressed),
-        "proof_size": compressed.len(),
+        "proof_bytes": hex::encode(&proof_bytes),
+        "proof_size": proof_bytes.len(),
+        "note": "Full Nova IVC pending ark version upgrade"
     }))
 }
 
 fn hex_to_fr(hex: &str) -> Result<Fr> {
     let hex_clean = hex.trim_start_matches("0x");
-    let bytes = hex::decode(hex_clean)
-        .context("Invalid hex")?;
-    
-    // Pad to 32 bytes
-    let mut padded = vec![0u8; 32];
+
+    if hex_clean.is_empty() || hex_clean == "0" {
+        return Ok(Fr::from(0u64));
+    }
+
+    let bytes = hex::decode(hex_clean).context("Invalid hex")?;
+
+    let mut padded = [0u8; 32];
     let copy_len = bytes.len().min(32);
-    padded[32 - copy_len..].copy_from_slice(&bytes[bytes.len() - copy_len..]);
-    
-    Fr::deserialize_uncompressed(&padded[..])
-        .context("Failed to deserialize Fr")
+    padded[..copy_len].copy_from_slice(&bytes[..copy_len]);
+
+    Ok(Fr::from_le_bytes_mod_order(&padded))
 }

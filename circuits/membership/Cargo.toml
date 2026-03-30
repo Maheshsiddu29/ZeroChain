@@ -1,8 +1,8 @@
 [package]
-name = "circuits-membership"
+name = "membership-circuit"
 version = "0.1.0"
 edition = "2021"
-description = "Halo2 ValidatorMembershipCircuit for Zero Chain"
+description = "Validator membership circuit for Zero Chain"
 
 [dependencies]
 # Halo2
@@ -13,13 +13,17 @@ halo2curves = "0.6"
 ff = "0.13"
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
 
-# Local
-zc-crypto={workspace=true}
-zk-types={workspace=true}
+# Random (for tests)
+rand = "0.8"
 
 [dev-dependencies]
-rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 hex = "0.4"
+
+[features]
+default = ["std"]
+std = ["serde", "serde_json"]

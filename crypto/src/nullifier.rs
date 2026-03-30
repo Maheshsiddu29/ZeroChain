@@ -1,60 +1,41 @@
-//! Nullifier generation for double-spend prevention
+//! Nullifier derivation
 //!
-//! nullifier = Poseidon(secret, leaf_index)
+//! nullifier = Poseidon(nullifier_key, commitment)
 
-//#![cfg_attr(not(feature = "std"), no_std)]
+use crate::poseidon::{PoseidonHasher, Hash256};
+use zeroize::Zeroize;
 
-use ark_bn254::Fr;
-use ark_serialize::CanonicalDeserialize;
-use crate::poseidon::PoseidonHasher;
+pub struct NullifierDeriver;
 
-/// A nullifier that prevents double-spending
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Nullifier {
-    pub value: Fr,
+impl NullifierDeriver {
+    /// Derive a nullifier from secret key and commitment
+    pub fn derive(nullifier_key: &Hash256, commitment: &Hash256) -> Hash256 {
+        PoseidonHasher::hash_two(nullifier_key, commitment)
+    }
+
+    /// Verify a nullifier matches
+    pub fn verify(
+        nullifier: &Hash256,
+        nullifier_key: &Hash256,
+        commitment: &Hash256,
+    ) -> bool {
+        let computed = Self::derive(nullifier_key, commitment);
+        constant_time_eq(&computed, nullifier)
+    }
 }
 
-impl Nullifier {
-    /// Create a nullifier from a secret and leaf index
-    pub fn new(secret: Fr, leaf_index: u64) -> Self {
-        let hasher = PoseidonHasher::new();
-        let index_field = Fr::from(leaf_index);
-        let value = hasher.hash_two(secret, index_field);
-        Self { value }
-    }
+/// Generate a random nullifier key
+pub fn random_nullifier_key() -> Hash256 {
+    use rand::RngCore;
+    let mut rng = rand::thread_rng();
+    let mut key = [0u8; 32];
+    rng.fill_bytes(&mut key);
+    key
+}
 
-    /// Create a nullifier from a secret and a field element
-    pub fn from_fields(secret: Fr, domain_separator: Fr) -> Self {
-        let hasher = PoseidonHasher::new();
-        let value = hasher.hash_two(secret, domain_separator);
-        Self { value }
-    }
-
-    /// Generate a random nullifier (for testing)
-    #[cfg(feature = "std")]
-    pub fn random() -> Self {
-        use ark_std::rand::Rng;
-        let mut rng = ark_std::test_rng();
-        let value = Fr::from(rng.gen::<u64>());
-        Self { value }
-    }
-
-    /// Get the nullifier as bytes
-    pub fn to_bytes(&self) -> [u8; 32] {
-        use ark_serialize::CanonicalSerialize;
-        let mut buf = [0u8; 32];
-        self.value
-            .serialize_compressed(&mut buf[..])
-            .expect("serialization failed");
-        buf
-    }
-
-    /// Create a nullifier from bytes
-    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
-        Fr::deserialize_compressed(bytes)
-            .ok()
-            .map(|value| Self { value })
-    }
+fn constant_time_eq(a: &Hash256, b: &Hash256) -> bool {
+    use subtle::ConstantTimeEq;
+    a.ct_eq(b).into()
 }
 
 #[cfg(test)]
@@ -63,35 +44,36 @@ mod tests {
 
     #[test]
     fn test_nullifier_deterministic() {
-        let secret = Fr::from(12345u64);
-        let n1 = Nullifier::new(secret, 0);
-        let n2 = Nullifier::new(secret, 0);
-        assert_eq!(n1, n2, "Same inputs should produce same nullifier");
+        let nk = [1u8; 32];
+        let cm = [2u8; 32];
+
+        let n1 = NullifierDeriver::derive(&nk, &cm);
+        let n2 = NullifierDeriver::derive(&nk, &cm);
+
+        assert_eq!(n1, n2);
     }
 
     #[test]
-    fn test_nullifier_different_index() {
-        let secret = Fr::from(12345u64);
-        let n1 = Nullifier::new(secret, 0);
-        let n2 = Nullifier::new(secret, 1);
-        assert_ne!(n1, n2, "Different index should produce different nullifier");
+    fn test_nullifier_different_keys() {
+        let nk1 = [1u8; 32];
+        let nk2 = [2u8; 32];
+        let cm = [3u8; 32];
+
+        let n1 = NullifierDeriver::derive(&nk1, &cm);
+        let n2 = NullifierDeriver::derive(&nk2, &cm);
+
+        assert_ne!(n1, n2);
     }
 
     #[test]
-    fn test_nullifier_different_secret() {
-        let s1 = Fr::from(111u64);
-        let s2 = Fr::from(222u64);
-        let n1 = Nullifier::new(s1, 0);
-        let n2 = Nullifier::new(s2, 0);
-        assert_ne!(n1, n2, "Different secret should produce different nullifier");
-    }
+    fn test_nullifier_verify() {
+        let nk = random_nullifier_key();
+        let cm = [10u8; 32];
 
-    #[test]
-    fn test_nullifier_serialization() {
-        let secret = Fr::from(42u64);
-        let n = Nullifier::new(secret, 5);
-        let bytes = n.to_bytes();
-        let recovered = Nullifier::from_bytes(&bytes).unwrap();
-        assert_eq!(n, recovered);
+        let nullifier = NullifierDeriver::derive(&nk, &cm);
+        assert!(NullifierDeriver::verify(&nullifier, &nk, &cm));
+
+        let wrong_nk = [99u8; 32];
+        assert!(!NullifierDeriver::verify(&nullifier, &wrong_nk, &cm));
     }
 }

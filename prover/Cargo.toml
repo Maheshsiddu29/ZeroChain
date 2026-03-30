@@ -12,41 +12,54 @@ path = "src/main.rs"
 # CLI
 clap = { version = "4.4", features = ["derive"] }
 env_logger = "0.10"
-log = "0.4"
+log = { workspace = true }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-hex = "0.4"
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
 
 # SCALE codec for zk-types
-codec = { package = "parity-scale-codec", version = "3.6", features = ["derive"] }
+codec = { workspace = true }
 
 # ZK primitives
-ark-ff = "0.4"
-ark-ec = "0.4"
-ark-bn254 = "0.4"
-ark-groth16 = "0.4"
-ark-serialize = "0.4"
-ark-snark = "0.4"
-ark-std = "0.4"
-ark-relations = "0.4"
+ark-ff = { workspace = true }
+ark-ec = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-groth16 = { workspace = true }
+ark-snark = { workspace = true }
+ark-serialize = { workspace = true }
+ark-std = { workspace = true }
+ark-relations = { workspace = true }
+ark-r1cs-std = { workspace = true }
 
-# Nova for ZK-ORIGIN
-nova-snark = { version = "0.31", optional = true }
+# Hashing
+sha2 = "0.10"
+
+# Error handling
+anyhow = { workspace = true }
 
 # Local dependencies
-zk-types = { path = "../primitives/zk-types" }
-circuits-transfer = { path = "../circuits/transfer" }
-circuits-origin = { path = "../circuits/origin", optional = true }
-crypto = { path = "../crypto" }
+zk-types = { workspace = true }
+transfer-circuit = { path = "../circuits/transfer" }
+origin-circuit = { path = "../circuits/origin" }
 
-# Randomness
-rand = "0.8"
+# Randomness - override workspace to get std features
+rand = { version = "0.8", features = ["std", "std_rng"] }
 
 [features]
-default = []
-origin = ["nova-snark", "circuits-origin"]
+default = ["std"]
+std = [
+    "ark-ff/std",
+    "ark-ec/std",
+    "ark-bn254/std",
+    "ark-groth16/std",
+    "ark-serialize/std",
+    "ark-std/std",
+    "ark-relations/std",
+    "ark-r1cs-std/std",
+    "zk-types/std",
+]
 
 [dev-dependencies]
 tempfile = "3"
