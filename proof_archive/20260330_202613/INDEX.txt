@@ -1,0 +1,25 @@
+ZERO CHAIN PROOF ARCHIVE
+========================
+
+Proof ID: 20260330_202613
+Generated: Mon Mar 30 20:26:43 EDT 2026
+Status: VALID
+
+KEY FILES:
+  SUMMARY.md          - Start here (human-readable report)
+  metadata.json       - Machine-readable data
+  proof.bin           - The ZK proof (419 bytes)
+
+LOGS:
+  proof_generation.log
+  verification.log
+
+SECRETS (DO NOT SHARE):
+  witness.json
+  transfer.pk
+
+View summary:
+  cat proof_archive/20260330_202613/SUMMARY.md
+
+View metadata:
+  cat proof_archive/20260330_202613/metadata.json | jq '.'

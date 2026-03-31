@@ -9,7 +9,10 @@ members = [
     "circuits/membership",
     "crypto",
     "cli",
-    "prover"
+    "prover",
+    "pallets/proof-verifier",
+    "pallets/shielded-assets",
+    
 ]
 resolver = "2"
 

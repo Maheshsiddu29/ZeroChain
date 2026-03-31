@@ -1,0 +1,41 @@
+{
+  "description": "Valid 1-input 1-output shielded transfer (simplified hash)",
+  "witness": {
+    "input_notes": [
+      {
+        "value": "100000000000000",
+        "asset_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "blinding": "0xb438d45fed07f8e404d37868191baa807e1ea7a86c067dd38fd5a790ae6a5108",
+        "nullifier_key": "0x8d8063dc5cd440afb6f2ef322b4f1e5d76e4ba04dacae23644f731cfa9ca2325",
+        "owner_pubkey": "0x7d8cc8a0b0d421102cd4c8df43c3f5c9eb8295a64b2a3e0d5352f16c921bb322",
+        "merkle_path": [],
+        "merkle_indices": []
+      }
+    ],
+    "output_notes": [
+      {
+        "value": "100000000000000",
+        "asset_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "recipient_pubkey": "0xe87bee25b8d1413e75aaf93aa36d0ac2fb456f45532b9b1b1ace35a18d94230b",
+        "blinding": "0xd092830a45cf5b0c17c6ab030f7543129f419e9ca59b50528ab89e09fe9efb1c"
+      }
+    ]
+  },
+  "public_inputs": {
+    "merkle_root": "0x3105171191371af530a741485dde9f4a6aa13c4fb830bbe0e22799fd4086042b",
+    "nullifiers": [
+      "0xbd857afd591679605629780140458a7f832d76d2dbb54d5ffd7e99eb7702c41f"
+    ],
+    "output_commitments": [
+      "0xb84eec40f0fb9d4a8c70a53eb2e24dd49a870de2f8c6eb6da486d4aa8b331f28"
+    ],
+    "asset_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "fee_commitment": "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  "proof": {
+    "a": "0x09b50bfd5b24ff2fcc93c33464765b743591dffe59cca040eac6dc26db9d8e181946bf53d05eea897da60f5aa0af1b736acd69d53edd187dc39bac2c8c3eae04",
+    "b": "0x9f874df9977bc868f2dea34ee5a6ce7cf4d742ffc367f97a42cdcffd5e9d002603db55ae9e1ff07a8fc48748e7ad551cd6cf88f98bb7bec4e8648fb4cad70513f412052ddfec29fc743df0bdd49a865035be7e7446f8eaac23d83141456329003df5c866f593226c5fbfdc0775951f325cb3c8a70ebca88502d49eb3889d150d",
+    "c": "0x1ef0e6872cad88750059678924c385d43c043f13223939f92d7fb82660576805aa94b2b518838a7602a504f52c589401d0184429fabd791ff1fc35a0d82cafa1"
+  },
+  "expected_valid": true
+}
