@@ -25,7 +25,6 @@ scripts/proof_archive/**/transfer.vk
 # Proofs & Artifacts
 # ========================
 proofs/
-scripts/proof_archive/
 *.bin
 *.proof
 

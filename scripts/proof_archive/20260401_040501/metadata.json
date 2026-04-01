@@ -1,0 +1,57 @@
+{
+  "proof_id": "20260401_040501",
+  "generation_info": {
+    "timestamp": "20260401_040501",
+    "datetime_utc": "2026-04-01T04:05:28Z",
+    "datetime_local": "Wed Apr  1 04:05:28 UTC 2026",
+    "circuit_type": "transfer",
+    "circuit_structure": {
+      "inputs": 1,
+      "outputs": 1,
+      "merkle_depth": 32
+    },
+    "hash_function": "simplified_addition_dev_mode"
+  },
+  "file_sizes_bytes": {
+    "witness": 737,
+    "proof": 419,
+    "proving_key": 6384,
+    "verifying_key": 840,
+    "total_archive": 8380
+  },
+  "file_sizes_human": {
+    "witness": "737",
+    "proof": "419",
+    "proving_key": "6.3K",
+    "verifying_key": "840"
+  },
+  "performance_metrics": {
+    "proof_generation_seconds": 14.016328446,
+    "verification_seconds": 12.987446514,
+    "total_time_seconds": 27.003774960
+  },
+  "verification": {
+    "status": "VALID",
+    "verified_at": "2026-04-01T04:05:28Z"
+  },
+  "transaction_details": {
+    "value_smallest_unit": "100000000000000",
+    "value_tokens": "100 ZERO",
+    "asset_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "asset_name": "ZERO (native token)"
+  },
+  "system_info": {
+    "os": "Linux Akshayraj 6.6.87.2-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Thu Jun  5 18:30:46 UTC 2025 x86_64 x86_64 x86_64 GNU/Linux",
+    "cpu": "12th Gen Intel(R) Core(TM) i5-12450H"
+  },
+  "files": [
+    {"name": "witness.json", "size": 737, "secret": true},
+    {"name": "proof.bin", "size": 419, "secret": false},
+    {"name": "transfer.pk", "size": 6384, "secret": true},
+    {"name": "transfer.vk", "size": 840, "secret": false},
+    {"name": "metadata.json", "size": 0, "secret": false},
+    {"name": "SUMMARY.md", "size": 0, "secret": false},
+    {"name": "proof_generation.log", "size": 0, "secret": false},
+    {"name": "verification.log", "size": 0, "secret": false}
+  ]
+}
