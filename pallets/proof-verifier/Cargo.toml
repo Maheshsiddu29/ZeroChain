@@ -13,6 +13,7 @@ frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = 
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 zk-types = { path = "../../primitives/zk-types", default-features = false }
+pallet-shielded-assets = { path = "../shielded-assets", default-features = false }
 
 # Arkworks for Groth16 verification
 ark-ff = { workspace = true }
@@ -47,6 +48,7 @@ std = [
     "ark-serialize/std",
     "ark-std/std",
     "ark-relations/std",
+    "pallet-shielded-assets/std",
 ]
 runtime-benchmarks = [
     "frame-support/runtime-benchmarks",

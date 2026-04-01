@@ -32,7 +32,7 @@ pub mod pallet {
     pub struct Pallet<T>(_);
 
     #[pallet::config]
-    pub trait Config: frame_system::Config {
+    pub trait Config: frame_system::Config + pallet_shielded_assets::Config  {
         type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
         #[pallet::constant]
@@ -222,6 +222,8 @@ pub mod pallet {
                 .map_err(|_| Error::<T>::ProofVerificationFailed)?;
 
             ensure!(is_valid, Error::<T>::ProofVerificationFailed);
+            // Process the transfer: mark nullifiers spent, append commitments
+            pallet_shielded_assets::Pallet::<T>::process_verified_transfer(inputs)?;
 
             Ok(())
         }

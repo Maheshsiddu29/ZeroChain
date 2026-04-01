@@ -261,7 +261,8 @@ pub mod pallet {
                 commitments_added: inputs.output_commitments.len() as u32,
                 asset_id: inputs.asset_id,
             });
-
+            // Process the transfer: mark nullifiers spent, append commitments
+           
             Ok(())
         }
 
@@ -298,6 +299,57 @@ pub mod pallet {
     // ---------------------------------------------------------------
 
     impl<T: Config> Pallet<T> {
+
+        /// Called by pallet-proof-verifier after Groth16 verification passes.
+        /// No origin check needed since the proof was already verified.
+        pub fn process_verified_transfer(inputs: &TransferPublicInputs) -> DispatchResult {
+            ensure!(
+                inputs.nullifiers.len() <= MAX_INPUTS as usize,
+                Error::<T>::TooManyNullifiers
+            );
+            ensure!(
+                inputs.output_commitments.len() <= MAX_OUTPUTS as usize,
+                Error::<T>::TooManyCommitments
+            );
+            if CurrentMerkleRoot::<T>::get().is_some() {
+                ensure!(
+                    Self::is_valid_merkle_root(&inputs.merkle_root),
+                    Error::<T>::InvalidMerkleRoot
+                );
+            }
+            for nullifier in &inputs.nullifiers {
+                ensure!(
+                    !NullifierSet::<T>::contains_key(nullifier),
+                    Error::<T>::NullifierAlreadySpent
+                );
+            }
+            let block_number = <frame_system::Pallet<T>>::block_number();
+            for nullifier in &inputs.nullifiers {
+                NullifierSet::<T>::insert(nullifier, block_number);
+            }
+            NullifierCount::<T>::mutate(|c| {
+                *c = c.saturating_add(inputs.nullifiers.len() as u64)
+            });
+            let mut count = CommitmentCount::<T>::get();
+            for commitment in &inputs.output_commitments {
+                Commitments::<T>::insert(count, commitment);
+                Self::deposit_event(Event::CommitmentInserted {
+                    index: count,
+                    commitment: *commitment,
+                });
+                count = count.saturating_add(1);
+            }
+            CommitmentCount::<T>::put(count);
+            TransferCount::<T>::mutate(|c| *c = c.saturating_add(1));
+            Self::deposit_event(Event::ShieldedTransferProcessed {
+                nullifiers_added: inputs.nullifiers.len() as u32,
+                commitments_added: inputs.output_commitments.len() as u32,
+                asset_id: inputs.asset_id,
+            });
+            Ok(())
+        
+        }
+
         /// Check if a Merkle root is in the recent valid roots list.
         fn is_valid_merkle_root(root: &Hash256) -> bool {
             // Check current root first (fast path)
