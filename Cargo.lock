@@ -6724,6 +6724,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-proof-verifier"
+version = "0.1.0"
+dependencies = [
+ "ark-bn254",
+ "ark-ec 0.4.2",
+ "ark-ff 0.4.2",
+ "ark-groth16",
+ "ark-relations",
+ "ark-serialize 0.4.2",
+ "ark-snark",
+ "ark-std 0.4.0",
+ "frame-support",
+ "frame-system",
+ "hex",
+ "pallet-shielded-assets",
+ "parity-scale-codec",
+ "scale-info",
+ "serde_json",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "zk-types",
+]
+
+[[package]]
 name = "pallet-session"
 version = "28.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?rev=02ec8d4#02ec8d455cfb5e692f133520c4b367ef4f513f6e"
@@ -6759,6 +6784,20 @@ dependencies = [
  "rand 0.8.5",
  "sp-runtime",
  "sp-session",
+]
+
+[[package]]
+name = "pallet-shielded-assets"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "zk-types",
 ]
 
 [[package]]

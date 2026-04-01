@@ -5,7 +5,7 @@
 extern crate alloc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
 
@@ -47,7 +47,7 @@ pub type AssetId = [u8; 32];
 //Uncompressed mode. 
 
 //Total size: 64 + 128 + 64 = 256 bytes.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
 pub struct Groth16Proof {
     //G1 point (a), 64 bytes uncompressed.
     pub a: [u8; G1_UNCOMPRESSED_SIZE],
@@ -66,7 +66,7 @@ pub struct Groth16Proof {
 //Halo2 proof sizes vary by circuit complexity, so this uses a Vec<u8>
 //rather than a fixed array. 
 //Typical range: 1-5 KB.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct Halo2Proof {
     //Raw serialized Halo2 proof bytes.
     pub proof_bytes: Vec<u8>,
@@ -80,7 +80,7 @@ pub struct Halo2Proof {
 //
 //Contains the folding accumulator that proves an unbroken chain of valid
 //state transitions from genesis to the current block. 
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct NovaProof {
     //The Nova IVC accumulator bytes.
     //Size depends on the circuit but is constant for a given circuit version.
@@ -102,7 +102,7 @@ pub struct NovaProof {
 //vikram your transfer circuit should exppose these inputs in the exact order 
 //-pallet-proof-verifier deserializes them in this exact order
 //-The field elements in the circuit map 1:1 to these byte arrays
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct TransferPublicInputs {
     //Root of the note commitment Merkle tree at the time of proof generation.
     //The prover picks a recent root; the verifier checks it matches a known root.
@@ -134,7 +134,7 @@ pub struct TransferPublicInputs {
 //
 //A validator uses this to prove they belong to the active validator set
 //without revealing which validator they are.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct MembershipPublicInputs {
     //Root of the validator credential Merkle tree.
     //The verifier checks this matches the current on-chain validator root.
@@ -155,7 +155,7 @@ pub struct MembershipPublicInputs {
 //
 //Each block's proof demonstrates that the state transition from
 //prev_state_root to new_state_root is valid and links back to genesis.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct OriginPublicInputs {
     //The state root before this block's transitions.
     pub prev_state_root: Hash256,
@@ -176,7 +176,7 @@ pub struct OriginPublicInputs {
 
 //Verification key stored on-chain, used by pallet-proof-verifier to check
 //incoming proofs. Keys are set during genesis or updated via governance.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub enum VerifyingKey {
     //Groth16 verifying key, serialized with ark-serialize.
     //Generated during trusted setup. Stored once, used for all transfer proofs.
@@ -190,7 +190,7 @@ pub enum VerifyingKey {
     Nova(Vec<u8>),
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct ShieldedTransferData {
     pub proof: Groth16Proof,
     pub inputs: TransferPublicInputs,
@@ -208,7 +208,7 @@ pub struct ShieldedTransferData {
 //based on the variant.
 //
 //This is what the CLI sends and what the pallets receive.
-#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, TypeInfo)]
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub enum ProofSubmission {
     //A shielded transfer proof.
     //Verified by: arkworks Groth16 verifier
@@ -240,7 +240,7 @@ pub enum ProofSubmission {
 
 //Simple enum to identify which proof system a verifying key belongs to.
 //Used as a storage key in pallet-proof-verifier's VerifyingKeys map.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
 pub enum ProofType {
     Groth16Transfer,
     Halo2Membership,

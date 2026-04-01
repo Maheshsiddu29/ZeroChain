@@ -1,0 +1,62 @@
+[package]
+name = "pallet-proof-verifier"
+description = "On-chain ZK proof verification dispatcher for Zero Chain."
+version = "0.1.0"
+edition = "2021"
+license = "BUSL-1.1"
+publish = false
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.6", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11", default-features = false, features = ["derive"] }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
+frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
+zk-types = { path = "../../primitives/zk-types", default-features = false }
+pallet-shielded-assets = { path = "../shielded-assets", default-features = false }
+
+# Arkworks for Groth16 verification
+ark-ff = { workspace = true }
+ark-ec = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-groth16 = { workspace = true }
+ark-serialize = { workspace = true }
+ark-std = { workspace = true }
+ark-relations = { workspace = true }
+ark-snark = { version = "0.4.0", default-features = false }
+
+[dev-dependencies]
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
+hex = "0.4"
+serde_json = "1.0"
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "zk-types/std",
+    "ark-ff/std",
+    "ark-ec/std",
+    "ark-bn254/std",
+    "ark-groth16/std",
+    "ark-serialize/std",
+    "ark-std/std",
+    "ark-relations/std",
+    "pallet-shielded-assets/std",
+]
+runtime-benchmarks = [
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
+]
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+    "sp-runtime/try-runtime",
+]

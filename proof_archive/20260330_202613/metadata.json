@@ -1,0 +1,57 @@
+{
+  "proof_id": "20260330_202613",
+  "generation_info": {
+    "timestamp": "20260330_202613",
+    "datetime_utc": "2026-03-31T00:26:43Z",
+    "datetime_local": "Mon Mar 30 20:26:43 EDT 2026",
+    "circuit_type": "transfer",
+    "circuit_structure": {
+      "inputs": 1,
+      "outputs": 1,
+      "merkle_depth": 32
+    },
+    "hash_function": "simplified_addition_dev_mode"
+  },
+  "file_sizes_bytes": {
+    "witness": 737,
+    "proof": 419,
+    "proving_key": 6384,
+    "verifying_key": 840,
+    "total_archive": 8380
+  },
+  "file_sizes_human": {
+    "witness": "737",
+    "proof": "419",
+    "proving_key": "6384",
+    "verifying_key": "840"
+  },
+  "performance_metrics": {
+    "proof_generation_seconds": 1.645047000,
+    "verification_seconds": .834585000,
+    "total_time_seconds": 2.479632000
+  },
+  "verification": {
+    "status": "VALID",
+    "verified_at": "2026-03-31T00:26:43Z"
+  },
+  "transaction_details": {
+    "value_smallest_unit": "100000000000000",
+    "value_tokens": "100 ZERO",
+    "asset_id": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "asset_name": "ZERO (native token)"
+  },
+  "system_info": {
+    "os": "Darwin Sais-MacBook-Pro.local 25.2.0 Darwin Kernel Version 25.2.0: Tue Nov 18 21:09:45 PST 2025; root:xnu-12377.61.12~1/RELEASE_ARM64_T6030 arm64",
+    "cpu": "Apple M3 Pro"
+  },
+  "files": [
+    {"name": "witness.json", "size": 737, "secret": true},
+    {"name": "proof.bin", "size": 419, "secret": false},
+    {"name": "transfer.pk", "size": 6384, "secret": true},
+    {"name": "transfer.vk", "size": 840, "secret": false},
+    {"name": "metadata.json", "size": 0, "secret": false},
+    {"name": "SUMMARY.md", "size": 0, "secret": false},
+    {"name": "proof_generation.log", "size": 0, "secret": false},
+    {"name": "verification.log", "size": 0, "secret": false}
+  ]
+}
