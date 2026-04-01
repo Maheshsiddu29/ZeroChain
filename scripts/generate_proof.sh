@@ -14,15 +14,13 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 echo -e "${CYAN}${BOLD}"
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║     Zero Chain ZK Proof Generator with Metadata           ║"
-echo "╚════════════════════════════════════════════════════════════╝"
+echo "     Zero Chain ZK Proof Generator with Metadata           "
 echo -e "${NC}\n"
 
 # Create directory structure
 echo -e "${CYAN}Creating proof archive directory...${NC}"
 mkdir -p ${PROOF_DIR}
-echo -e "${GREEN}✓ Created: ${PROOF_DIR}${NC}\n"
+echo -e "${GREEN} Created: ${PROOF_DIR}${NC}\n"
 
 # Check if keys exist
 if [ ! -f "keys/transfer.pk" ] || [ ! -f "keys/transfer.vk" ]; then
@@ -60,7 +58,7 @@ cat > ${PROOF_DIR}/witness.json << 'EOF'
 EOF
 
 WITNESS_SIZE=$(stat -f%z ${PROOF_DIR}/witness.json 2>/dev/null || stat -c%s ${PROOF_DIR}/witness.json 2>/dev/null)
-echo -e "${GREEN}✓ Witness created (${WITNESS_SIZE} bytes)${NC}\n"
+echo -e "${GREEN} Witness created (${WITNESS_SIZE} bytes)${NC}\n"
 
 # Generate proof with timing
 echo -e "${CYAN}Step 2/4: Generating zero-knowledge proof...${NC}"
@@ -75,7 +73,7 @@ END_TIME=$(date +%s.%N)
 PROOF_TIME=$(echo "$END_TIME - $START_TIME" | bc)
 
 PROOF_SIZE=$(stat -f%z ${PROOF_DIR}/proof.bin 2>/dev/null || stat -c%s ${PROOF_DIR}/proof.bin 2>/dev/null)
-echo -e "${GREEN}✓ Proof generated (${PROOF_SIZE} bytes in ${PROOF_TIME}s)${NC}\n"
+echo -e "${GREEN} Proof generated (${PROOF_SIZE} bytes in ${PROOF_TIME}s)${NC}\n"
 
 # Verify proof with timing
 echo -e "${CYAN}Step 3/4: Verifying proof...${NC}"
@@ -90,10 +88,10 @@ VERIFY_TIME=$(echo "$END_TIME - $START_TIME" | bc)
 
 if echo "$VERIFY_OUTPUT" | grep -q "Proof is VALID"; then
     VERIFICATION_STATUS="VALID"
-    echo -e "${GREEN}✓ Proof VERIFIED (${VERIFY_TIME}s)${NC}\n"
+    echo -e "${GREEN} Proof VERIFIED (${VERIFY_TIME}s)${NC}\n"
 else
     VERIFICATION_STATUS="INVALID"
-    echo -e "${RED}✗ Proof INVALID${NC}\n"
+    echo -e "${RED} Proof INVALID${NC}\n"
 fi
 
 # Get system info
@@ -166,133 +164,6 @@ EOF
 # Get proof hex dump
 PROOF_HEX=$(hexdump -C ${PROOF_DIR}/proof.bin | head -30)
 
-# Create comprehensive summary
-cat > ${PROOF_DIR}/SUMMARY.md << EOF
-# Zero-Knowledge Proof Summary Report
-
-**Proof ID:** \`${TIMESTAMP}\`  
-**Generated:** $(date)  
-**Status:** ${VERIFICATION_STATUS} ✓
-
----
-
-##  Quick Stats
-
-| Metric | Value |
-|--------|-------|
-| **Proof Size** | **${PROOF_SIZE} bytes** |
-| **Proof Generation Time** | ${PROOF_TIME} seconds |
-| **Verification Time** | ${VERIFY_TIME} seconds |
-| **Circuit Type** | 1-input, 1-output transfer |
-
----
-
-##  File Inventory
-
-| File | Size (bytes) | Size (human) | Secret? | Description |
-|------|--------------|--------------|---------|-------------|
-| \`witness.json\` | ${WITNESS_SIZE} | $(numfmt --to=iec ${WITNESS_SIZE} 2>/dev/null || echo ${WITNESS_SIZE}) | 🔒 YES | Private witness data |
-| \`proof.bin\` | **${PROOF_SIZE}** | **$(numfmt --to=iec ${PROOF_SIZE} 2>/dev/null || echo ${PROOF_SIZE})** | ✓ No | ZK proof |
-| \`transfer.pk\` | ${PK_SIZE} | $(numfmt --to=iec ${PK_SIZE} 2>/dev/null || echo ${PK_SIZE}) | 🔒 YES | Proving key |
-| \`transfer.vk\` | ${VK_SIZE} | $(numfmt --to=iec ${VK_SIZE} 2>/dev/null || echo ${VK_SIZE}) | ✓ No | Verifying key |
-
-**Total Archive Size:** $((WITNESS_SIZE + PROOF_SIZE + PK_SIZE + VK_SIZE)) bytes
-
----
-
-##  Transaction Details
-
-- **Amount:** 100,000,000,000,000 (100 ZERO tokens)
-- **Asset ID:** 0x0000...0000 (native ZERO token)
-- **Input Notes:** 1
-- **Output Notes:** 1
-- **Merkle Tree Depth:** 32 levels
-
----
-
-##  Performance Breakdown
-
-\`\`\`
-Proof Generation:  ${PROOF_TIME} seconds
-Verification:      ${VERIFY_TIME} seconds
-────────────────────────────────
-Total:            $(echo "$PROOF_TIME + $VERIFY_TIME" | bc) seconds
-\`\`\`
-
-**System:**
-- OS: ${SYSTEM_INFO}
-- CPU: ${CPU_INFO}
-
----
-
-##  Proof Structure (Binary Hexdump)
-
-First 30 lines of \`proof.bin\`:
-
-\`\`\`
-${PROOF_HEX}
-\`\`\`
-
----
-
-##  Verification Log
-
-\`\`\`
-$(cat ${PROOF_DIR}/verification.log)
-\`\`\`
-
----
-
-##  Security Information
-
-###  KEEP SECRET (Never Share!)
--  \`witness.json\` - Contains secret keys and private data
--  \`transfer.pk\` - Proving key (secure but not for public)
-
-###  SAFE TO SHARE (Public)
--  \`proof.bin\` - The zero-knowledge proof itself
--  \`transfer.vk\` - Verifying key (will be on-chain)
--  \`metadata.json\` - Proof metadata
--  This summary file
-
----
-
-##  Files in This Archive
-
-1. **SUMMARY.md** (this file) - Human-readable report
-2. **metadata.json** - Machine-readable structured data
-3. **proof.bin** - The actual ZK proof (${PROOF_SIZE} bytes)
-4. **witness.json** - Private witness ( SECRET)
-5. **transfer.pk** - Proving key ( SECRET)
-6. **transfer.vk** - Verifying key (public)
-7. **proof_generation.log** - Detailed generation output
-8. **verification.log** - Detailed verification output
-
----
-
-##  Next Steps
-
-### To verify this proof manually:
-
-\`\`\`bash
-cargo run --release -p zk-prover -- verify \\
-  --proof ${PROOF_DIR}/proof.bin \\
-  --vk ${PROOF_DIR}/transfer.vk
-\`\`\`
-
-### To submit to Zero Chain:
-
-\`\`\`bash
-# (Once integration is ready)
-zero-chain submit-proof --proof ${PROOF_DIR}/proof.bin
-\`\`\`
-
----
-
-**Generated by Zero Chain ZK Prover v0.1.0**  
-**Timestamp:** ${TIMESTAMP}  
-**Verification Status:** ${VERIFICATION_STATUS}
-EOF
 
 # Create .gitignore
 cat > ${PROOF_DIR}/.gitignore << 'EOF'
@@ -308,49 +179,18 @@ transfer.pk
 !metadata.json
 EOF
 
-# Create index file for easy navigation
-cat > ${PROOF_DIR}/INDEX.txt << EOF
-ZERO CHAIN PROOF ARCHIVE
-========================
-
-Proof ID: ${TIMESTAMP}
-Generated: $(date)
-Status: ${VERIFICATION_STATUS}
-
-KEY FILES:
-  SUMMARY.md          - Start here (human-readable report)
-  metadata.json       - Machine-readable data
-  proof.bin           - The ZK proof (${PROOF_SIZE} bytes)
-
-LOGS:
-  proof_generation.log
-  verification.log
-
-SECRETS (DO NOT SHARE):
-  witness.json
-  transfer.pk
-
-View summary:
-  cat ${PROOF_DIR}/SUMMARY.md
-
-View metadata:
-  cat ${PROOF_DIR}/metadata.json | jq '.'
-EOF
-
-echo -e "${GREEN}✓ Metadata files created${NC}\n"
+echo -e "${GREEN} Metadata files created${NC}\n"
 
 # Display summary
 echo -e "${CYAN}${BOLD}"
-echo "╔════════════════════════════════════════════════════════════╗"
-echo "║                  PROOF GENERATION COMPLETE                 ║"
-echo "╚════════════════════════════════════════════════════════════╝"
+echo "                 PROOF GENERATION COMPLETE                 "
 echo -e "${NC}\n"
 
 echo -e "${YELLOW}${BOLD}Archive Location:${NC} ${PROOF_DIR}\n"
 
 echo -e "${YELLOW}${BOLD}File Sizes:${NC}"
 printf "  %-25s ${BOLD}%12s${NC} bytes\n" "Witness (SECRET):" "${WITNESS_SIZE}"
-printf "  %-25s ${BOLD}%12s${NC} bytes ${GREEN}${BOLD}<-- PROOF SIZE${NC}\n" "Proof:" "${PROOF_SIZE}"
+printf "  %-25s ${BOLD}%12s${NC} bytes ${GREEN}${BOLD}<== PROOF SIZE${NC}\n" "Proof:" "${PROOF_SIZE}"
 printf "  %-25s ${BOLD}%12s${NC} bytes\n" "Proving Key (SECRET):" "${PK_SIZE}"
 printf "  %-25s ${BOLD}%12s${NC} bytes\n" "Verifying Key:" "${VK_SIZE}"
 echo ""
@@ -362,9 +202,9 @@ echo ""
 
 echo -e "${YELLOW}${BOLD}Verification:${NC}"
 if [ "$VERIFICATION_STATUS" = "VALID" ]; then
-    echo -e "  Status: ${GREEN}${BOLD}✓ VALID${NC}"
+    echo -e "  Status: ${GREEN}${BOLD} VALID${NC}"
 else
-    echo -e "  Status: ${RED}${BOLD}✗ INVALID${NC}"
+    echo -e "  Status: ${RED}${BOLD} INVALID${NC}"
 fi
 echo ""
 
@@ -373,9 +213,7 @@ ls -lh ${PROOF_DIR}/ | tail -n +2 | awk '{printf "  %-35s %8s\n", $9, $5}'
 echo ""
 
 echo -e "${CYAN}${BOLD}Quick Commands:${NC}"
-echo -e "  View summary:   ${BOLD}cat ${PROOF_DIR}/SUMMARY.md${NC}"
 echo -e "  View metadata:  ${BOLD}cat ${PROOF_DIR}/metadata.json | jq '.'${NC}"
-echo -e "  View index:     ${BOLD}cat ${PROOF_DIR}/INDEX.txt${NC}"
 echo ""
 
-echo -e "${GREEN}${BOLD}✓ All proof artifacts saved to: ${PROOF_DIR}${NC}\n"
+echo -e "${GREEN}${BOLD} All proof artifacts saved to: ${PROOF_DIR}${NC}\n"
