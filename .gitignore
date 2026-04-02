@@ -18,8 +18,7 @@ Cargo.lock
 # ========================
 scripts/keys/*.pk
 scripts/keys/*.vk
-scripts/proof_archive/**/transfer.pk
-scripts/proof_archive/**/transfer.vk
+scripts/proof_archive/
 
 # ========================
 # Proofs & Artifacts

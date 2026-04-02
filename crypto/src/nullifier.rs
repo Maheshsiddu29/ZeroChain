@@ -3,7 +3,7 @@
 //! nullifier = Poseidon(nullifier_key, commitment)
 
 use crate::poseidon::{PoseidonHasher, Hash256};
-use zeroize::Zeroize;
+//use zeroize::Zeroize;
 
 pub struct NullifierDeriver;
 
