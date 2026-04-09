@@ -1,45 +1,39 @@
-//! Step circuit for Nova IVC
+//! State transition step circuit for ZK-ORIGIN
+//!
+//! Stubbed until Nova version compatible with ark 0.4.x is available.
 
-use nova_snark::traits::circuit::StepCircuit as NovaStepCircuit;
 use ark_bn254::Fr;
-use ark_ff::PrimeField;
 
-/// One step in the recursive chain: prove transition from prev_root to new_root
-#[derive(Clone, Debug)]
-pub struct StepCircuit {
+
+/// Placeholder for the state transition circuit
+pub struct StateTransitionCircuit {
     pub prev_state_root: Fr,
     pub new_state_root: Fr,
     pub block_height: u64,
 }
 
-impl StepCircuit {
-    pub fn genesis(genesis_hash: Fr) -> Self {
+impl StateTransitionCircuit {
+    /// Create a new step circuit
+    pub fn new(prev_state_root: Fr, new_state_root: Fr, block_height: u64) -> Self {
         Self {
-            prev_state_root: genesis_hash,
-            new_state_root: genesis_hash,
-            block_height: 0,
+            prev_state_root,
+            new_state_root,
+            block_height,
         }
     }
 }
 
-impl NovaStepCircuit<Fr> for StepCircuit {
-    fn arity(&self) -> usize {
-        // Number of public inputs
-        3  // prev_root, new_root, height
-    }
-    
-    fn synthesize<CS: ConstraintSystem<Fr>>(
-        &self,
-        cs: &mut CS,
-        z: &[AllocatedNum<Fr>],
-    ) -> Result<Vec<AllocatedNum<Fr>>, SynthesisError> {
-        // Constraint: verify state transition is valid
-        // For now, just pass through (real implementation checks block execution)
-        
-        let prev_root = AllocatedNum::alloc(cs.namespace(|| "prev_root"), || Ok(self.prev_state_root))?;
-        let new_root = AllocatedNum::alloc(cs.namespace(|| "new_root"), || Ok(self.new_state_root))?;
-        
-        // Output new_root for next fold
-        Ok(vec![new_root])
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_step_circuit_creation() {
+        let circuit = StateTransitionCircuit::new(
+            Fr::from(0u64),
+            Fr::from(1u64),
+            1,
+        );
+        assert_eq!(circuit.block_height, 1);
     }
 }

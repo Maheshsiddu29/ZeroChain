@@ -1,1 +1,56 @@
 target/
+# ========================
+# Rust
+# ========================
+target/
+Cargo.lock
+
+# (Optional: keep Cargo.lock if this is an application, remove if library)
+
+# ========================
+# Environment
+# ========================
+.env
+.env.*
+
+# ========================
+# ZK Keys (Sensitive)
+# ========================
+scripts/keys/*.pk
+scripts/keys/*.vk
+scripts/proof_archive/**/transfer.pk
+scripts/proof_archive/**/transfer.vk
+
+# ========================
+# Proofs & Artifacts
+# ========================
+proofs/
+scripts/proof_archive/
+*.bin
+*.proof
+
+# ========================
+# Logs
+# ========================
+*.log
+
+# ========================
+# Witnesses (private inputs)
+# ========================
+witnesses/
+*.json
+!circuits/**/tests/fixtures/*.json
+
+# ========================
+# Temp files
+# ========================
+*.tmp
+*.out
+
+# ========================
+# OS / Editor
+# ========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

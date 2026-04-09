@@ -4,13 +4,33 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-nova-snark = "0.68.0"
-ark-ff = "0.5.0"
-ark-bn254 = "0.5"
-ark-std = "0.5.0"
+# Arkworks (matching workspace versions 0.4.x)
+ark-ff = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-std = { workspace = true }
+ark-serialize = { workspace = true }
+ark-ec = { workspace = true }
 
-crypto = { path = "../../crypto" }
-zk-types = { path = "../../primitives/zk-types", default-features = false }
+# Your workspace crates
+zc-crypto = { workspace = true }
+zk-types = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
 
 [dev-dependencies]
-criterion = "0.8.2"
+rand = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+    "ark-ff/std",
+    "ark-bn254/std",
+    "ark-std/std",
+    "ark-serialize/std",
+    "ark-ec/std",
+    "zc-crypto/std",
+    "zk-types/std",
+]

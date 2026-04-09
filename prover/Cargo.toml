@@ -1,35 +1,65 @@
 [package]
-name = "zero-chain-prover"
+name = "zk-prover"
 version = "0.1.0"
 edition = "2021"
+description = "Zero Chain ZK Proof Generator"
 
 [[bin]]
-name = "prover"
+name = "zk-prover"
 path = "src/main.rs"
 
 [dependencies]
-# Circuits
-transfer-circuit = { path = "../circuits/transfer" }
-crypto = { path = "../crypto" }
-zk-types = { path = "../primitives/zk-types" }
-
-# Arkworks
-ark-bn254 = "0.5.0"
-ark-groth16 = "0.5.0"
-ark-serialize = "0.5.0"
-ark-std = "0.5.0"
-
 # CLI
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.4", features = ["derive"] }
+env_logger = "0.10"
+log = { workspace = true }
 
 # Serialization
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-hex = "0.4"
+serde = { workspace = true }
+serde_json = { workspace = true }
+hex = { workspace = true }
 
-# Async (for future gRPC service)
-tokio = { version = "1", features = ["full"], optional = true }
+# SCALE codec for zk-types
+codec = { workspace = true }
+
+# ZK primitives
+ark-ff = { workspace = true }
+ark-ec = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-groth16 = { workspace = true }
+ark-snark = { workspace = true }
+ark-serialize = { workspace = true }
+ark-std = { workspace = true }
+ark-relations = { workspace = true }
+ark-r1cs-std = { workspace = true }
+
+# Hashing
+sha2 = "0.10"
+
+# Error handling
+anyhow = { workspace = true }
+
+# Local dependencies
+zk-types = { workspace = true }
+transfer-circuit = { path = "../circuits/transfer" }
+origin-circuit = { path = "../circuits/origin" }
+
+# Randomness - override workspace to get std features
+rand = { version = "0.8", features = ["std", "std_rng"] }
 
 [features]
-default = []
-service = ["tokio"]
+default = ["std"]
+std = [
+    "ark-ff/std",
+    "ark-ec/std",
+    "ark-bn254/std",
+    "ark-groth16/std",
+    "ark-serialize/std",
+    "ark-std/std",
+    "ark-relations/std",
+    "ark-r1cs-std/std",
+    "zk-types/std",
+]
+
+[dev-dependencies]
+tempfile = "3"
