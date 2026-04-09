@@ -20,7 +20,7 @@ workspace = true
 [dependencies]
 clap = { features = ["derive"], workspace = true }
 futures = { features = ["thread-pool"], workspace = true }
-jsonrpsee = { features = ["server"], workspace = true }
+jsonrpsee = { version = "0.24", features = ["server"] }
 
 # substrate client
 sc-basic-authorship = { workspace = true, default-features = true }

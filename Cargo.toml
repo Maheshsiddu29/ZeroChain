@@ -12,6 +12,7 @@ members = [
     "prover",
     "pallets/proof-verifier",
     "pallets/shielded-assets",
+    "pallets/zk-validator",
     
 ]
 resolver = "2"

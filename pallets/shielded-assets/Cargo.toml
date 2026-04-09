@@ -1,6 +1,6 @@
 [package]
 name = "pallet-shielded-assets"
-description = "Private token transfers for Zero Chain. Manages the note commitment tree and nullifier set. Processes verified Groth16 shielded transfer proofs."
+description = "Private token transfers for Zero Chain. Manages the note commitment tree and nullifier set."
 version = "0.1.0"
 edition = "2021"
 license = "BUSL-1.1"

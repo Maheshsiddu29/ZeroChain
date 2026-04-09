@@ -1,7 +1,7 @@
 //! Validator membership circuit implementation
 
 use halo2_proofs::{
-    circuit::{Layouter, SimpleFloorPlanner, Value, AssignedCell},
+    circuit::{Layouter, SimpleFloorPlanner, Value},
     plonk::{Circuit, ConstraintSystem, Error, Column, Instance, Advice, Selector},
     poly::Rotation,
 };

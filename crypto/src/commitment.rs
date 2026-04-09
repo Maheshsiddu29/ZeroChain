@@ -3,7 +3,6 @@
 //! commitment = Poseidon(value, asset_id, blinding, owner_pubkey)
 
 use crate::poseidon::{PoseidonHasher, Hash256};
-use zeroize::Zeroize;
 
 /// Note commitment generator
 pub struct NoteCommitment;

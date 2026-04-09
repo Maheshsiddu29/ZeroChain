@@ -1,6 +1,6 @@
 [package]
-name = "pallet-proof-verifier"
-description = "On-chain ZK proof verification dispatcher for Zero Chain."
+name = "pallet-zk-validator"
+description = "Anonymous validator management for Zero Chain. Stores validator credential commitments, verifies Halo2 membership proofs, and gates block production."
 version = "0.1.0"
 edition = "2021"
 license = "BUSL-1.1"
@@ -14,22 +14,10 @@ frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 zk-types = { path = "../../primitives/zk-types", default-features = false }
 
-# Arkworks for Groth16 verification
-ark-ff = { workspace = true }
-ark-ec = { workspace = true }
-ark-bn254 = { workspace = true }
-ark-groth16 = { workspace = true }
-ark-serialize = { workspace = true }
-ark-std = { workspace = true }
-ark-relations = { workspace = true }
-ark-snark = { version = "0.4.0", default-features = false }
-
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
-hex = "0.4"
-serde_json = "1.0"
 
 [features]
 default = ["std"]
@@ -40,13 +28,6 @@ std = [
     "frame-system/std",
     "sp-runtime/std",
     "zk-types/std",
-    "ark-ff/std",
-    "ark-ec/std",
-    "ark-bn254/std",
-    "ark-groth16/std",
-    "ark-serialize/std",
-    "ark-std/std",
-    "ark-relations/std",
 ]
 runtime-benchmarks = [
     "frame-support/runtime-benchmarks",
