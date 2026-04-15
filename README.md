@@ -18,23 +18,32 @@ Three things, none of which exist together in any other chain right now:
 
 ## Where things stand
 
-This repo has the working solochain base. Substrate chain, compiles, produces blocks, consensus works. We're building the ZK pallets and circuits on top of this right now.
+**Prototype is complete.** 104 tests passing, 0 failures across the workspace.
 
-Prototype goal: a private transaction proved off-chain and verified on-chain, running on a three-node devnet.
+What's working right now:
+- Off-chain Groth16 proof generation, on-chain verification, shielded transfer processed. The full loop.
+- Three custom pallets: `pallet-proof-verifier` (18 tests), `pallet-shielded-assets` (15 tests), `pallet-zk-validator` (19 tests).
+- Off-chain prover service (`zk-prover`) that generates real Groth16 proofs and serializes them for on-chain submission.
+- Shared type system (`zk-types`) that keeps the off-chain prover and on-chain pallets in sync without circular dependencies.
+- Cryptographic primitives (`zc-crypto`): Poseidon hashing over BN254, Pedersen commitments, nullifier derivation, Merkle trees.
+- Transfer circuit, membership circuit, and origin circuit all compiling and passing tests.
+- Devnet producing blocks with ZK-signed transactions end-to-end.
+
+What's next: host function refactor for production WASM, `pallet-zk-staking` (anonymous staking with ZK fraud proofs), `pallet-bls-consensus` (threshold signing for finality), Dandelion++ for transaction propagation privacy, mixnet for validator communication, and multi-node devnet via Zombienet.
 
 ## Tech stack
 
-Rust. Substrate (from the Polkadot SDK) as the blockchain framework. arkworks for Groth16 transaction proofs. Halo2 for validator membership proofs. Nova for the recursive state lineage system. Poseidon for hashing inside circuits (way cheaper than SHA-256 in ZK). AURA and GRANDPA for consensus during the prototype phase.
+Rust. Substrate (from the Polkadot SDK) as the blockchain framework. arkworks for Groth16 transaction proofs. Halo2 for validator membership proofs. Nova for the recursive state lineage system. Poseidon for hashing inside circuits (way cheaper than SHA-256 in ZK). BABE and GRANDPA for consensus during the prototype phase.
 
 ## Setup
 
-### Prerequisites (all platforms)
+### What you need
 
 - Rust 1.93 or newer (stable)
 - The `wasm32-unknown-unknown` Rust target
 - Git
 - A C/C++ compiler
-- 16 GB RAM minimum. 32 GB recommended. Substrate compilation alone eats 8-12 GB.
+- At least 16 GB RAM. 32 GB recommended. Substrate compilation alone eats 8-12 GB.
 - 50 GB free disk space. Rust build artifacts for Substrate fill up 30-50 GB over time.
 
 ### macOS
@@ -51,7 +60,7 @@ Install the dependencies:
 brew install llvm cmake protobuf
 ```
 
-This next part is important. RocksDB (the database Substrate uses) needs to find the LLVM libraries. If you skip this, the build will fail with a `libclang.dylib not found` error and it will be confusing.
+This next part is important. RocksDB (the database Substrate uses) needs to find the LLVM libraries. If you skip this, the build will fail with a `libclang.dylib not found` error and you'll waste time figuring out why.
 
 For Apple Silicon Macs (M1, M2, M3, M4):
 
@@ -127,7 +136,15 @@ cargo build --release
 
 First build takes 15 to 30 minutes. That is normal. Substrate pulls in around 1200 crates. After the first build, only changed code recompiles so it gets much faster.
 
-### Run it
+### Run the tests
+
+```
+cargo test --workspace
+```
+
+You should see 104 tests passing across all crates.
+
+### Run the node
 
 ```
 ./target/release/solochain-template-node --dev
@@ -136,9 +153,9 @@ First build takes 15 to 30 minutes. That is normal. Substrate pulls in around 12
 If it's working you'll see blocks coming in every few seconds:
 
 ```
-🏆 Imported #1 (0x0d7f...0530 -> 0xd7f3...5a61)
-🏆 Imported #2 (0xd7f3...5a61 -> 0x8de3...cdcb)
-🏆 Imported #3 (0x8de3...cdcb -> 0x186a...e864)
+Imported #1 (0x0d7f...0530 -> 0xd7f3...5a61)
+Imported #2 (0xd7f3...5a61 -> 0x8de3...cdcb)
+Imported #3 (0x8de3...cdcb -> 0x186a...e864)
 ```
 
 Ctrl+C to stop.
@@ -146,7 +163,6 @@ Ctrl+C to stop.
 ### Block explorer
 
 While the chain is running, open this in a browser:
-
 
 ```
 https://polkadot.js.org/apps/?rpc=ws://127.0.0.1:9944
@@ -158,17 +174,21 @@ Lets you look at blocks, submit transactions, read storage, and watch events.
 
 ```
 zerochain/
-  node/          -- the binary that runs the chain
-  runtime/       -- on-chain logic compiled to WASM
+  node/                    -- the binary that runs the chain
+  runtime/                 -- on-chain logic compiled to WASM
   pallets/
-    template/    -- starter pallet (getting replaced with our custom ones)
+    proof-verifier/        -- verifies Groth16, Halo2, and Nova proofs on-chain
+    shielded-assets/       -- private transfers using commitment trees and nullifiers
+    zk-validator/          -- anonymous validator set with ZK membership proofs
+    template/              -- starter pallet from Substrate
+  crates/
+    zk-types/              -- shared types between pallets and prover (no_std compatible)
+    zc-crypto/             -- Poseidon hash, Pedersen commitments, Merkle trees
+    transfer-circuit/      -- Groth16 R1CS circuit for private transfers
+    membership-circuit/    -- Halo2 circuit for validator membership proofs
+    origin-circuit/        -- Nova folding circuit for state lineage (ZK-ORIGIN)
+    zk-prover/             -- off-chain prover service for generating proofs
 ```
-
-We're adding these next:
-
-- `pallets/proof-verifier` -- verifies Groth16, Halo2, and Nova proofs on-chain
-- `pallets/shielded-assets` -- private transfers using commitment trees and nullifiers
-- `pallets/zk-validator` -- anonymous validator set with ZK membership proofs
 
 ## Common build problems
 
@@ -178,3 +198,18 @@ LLVM isn't installed or the path isn't set. Run:
 
 ```
 brew install llvm
+```
+
+Then set the path (see the macOS section above for Apple Silicon vs Intel).
+
+**Polkadot SDK version conflicts**
+
+If you see dependency resolution errors after adding a new crate, pin the exact version in `Cargo.toml`. Don't rely on automatic resolution with the Polkadot SDK. We learned this the hard way.
+
+**WASM build failures with arkworks**
+
+The prototype uses `cfg(feature="std")` gating on arkworks dependencies. If you see `no_std` errors during WASM compilation, make sure the arkworks crates are only pulled in under the `std` feature flag. The production fix (host function refactor) is in progress.
+
+## Credits
+
+Built by Sai Mahesh Sure, with Vikram A and Akshay Pranav(cryptography / ZK-ORIGIN) 
