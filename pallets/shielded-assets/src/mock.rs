@@ -34,9 +34,8 @@ impl frame_system::Config for Test {
 }
 
 impl pallet_shielded_assets::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
-    type MaxCommitments = frame_support::traits::ConstU32<1048576>; // 2^20
-    type MerkleRootHistory = frame_support::traits::ConstU32<32>;   // keep last 32 roots
+    type MaxCommitments = frame_support::traits::ConstU32<1048576>;
+    type MerkleRootHistory = frame_support::traits::ConstU32<32>;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

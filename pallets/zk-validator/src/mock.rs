@@ -34,7 +34,6 @@ impl frame_system::Config for Test {
 }
 
 impl pallet_zk_validator::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
     type MaxValidators = frame_support::traits::ConstU32<1024>;
 }
 

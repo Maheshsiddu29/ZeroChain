@@ -31,19 +31,19 @@ mod runtime {
     pub type ShieldedAssets = pallet_shielded_assets::Pallet<Test>;
 }
 
+
 #[derive_impl(frame_system::config_preludes::TestDefaultConfig)]
 impl frame_system::Config for Test {
     type Block = Block;
 }
 
 impl pallet_proof_verifier::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
+    type TransferHandler = ShieldedAssets;
     type MaxVerifyingKeySize = frame_support::traits::ConstU32<51200>;
     type MaxProofSize = frame_support::traits::ConstU32<10240>;
 }
 
 impl pallet_shielded_assets::Config for Test {
-    type RuntimeEvent = RuntimeEvent;
     type MaxCommitments = frame_support::traits::ConstU32<1048576>;
     type MerkleRootHistory = frame_support::traits::ConstU32<32>;
 }
