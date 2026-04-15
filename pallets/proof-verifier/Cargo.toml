@@ -14,20 +14,21 @@ frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 zk-types = { path = "../../primitives/zk-types", default-features = false }
 
-# Arkworks for Groth16 verification
-ark-ff = { workspace = true }
-ark-ec = { workspace = true }
-ark-bn254 = { workspace = true }
-ark-groth16 = { workspace = true }
-ark-serialize = { workspace = true }
-ark-std = { workspace = true }
-ark-relations = { workspace = true }
-ark-snark = { version = "0.4.0", default-features = false }
+# Arkworks — only compiled for native (std) builds, NOT for WASM
+ark-ff = { workspace = true, optional = true }
+ark-ec = { workspace = true, optional = true }
+ark-bn254 = { workspace = true, optional = true }
+ark-groth16 = { workspace = true, optional = true }
+ark-serialize = { workspace = true, optional = true }
+ark-std = { workspace = true, optional = true }
+ark-relations = { workspace = true, optional = true }
+ark-snark = { version = "0.4.0", default-features = false, optional = true }
 
 [dev-dependencies]
 sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
+pallet-shielded-assets = { path = "../shielded-assets", default-features = true }
 hex = "0.4"
 serde_json = "1.0"
 
@@ -47,6 +48,14 @@ std = [
     "ark-serialize/std",
     "ark-std/std",
     "ark-relations/std",
+    "ark-ff",
+    "ark-ec",
+    "ark-bn254",
+    "ark-groth16",
+    "ark-serialize",
+    "ark-std",
+    "ark-relations",
+    "ark-snark",
 ]
 runtime-benchmarks = [
     "frame-support/runtime-benchmarks",
