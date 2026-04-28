@@ -38,6 +38,7 @@ fn make_lineage() -> ProofSubmission {
             new_state_root: [0x33; 32],
             block_height: 5,
             genesis_hash: [0x00; 32],
+            num_steps: 1,
         },
     }
 }
@@ -386,6 +387,7 @@ fn submit_nova_rejects_empty_accumulator() {
             inputs: OriginPublicInputs {
                 prev_state_root: [0x22; 32], new_state_root: [0x33; 32],
                 block_height: 5, genesis_hash: [0x00; 32],
+            num_steps: 1,
             },
         };
         assert_noop!(
@@ -406,6 +408,7 @@ fn submit_nova_rejects_zero_block_height() {
             inputs: OriginPublicInputs {
                 prev_state_root: [0x22; 32], new_state_root: [0x33; 32],
                 block_height: 0, genesis_hash: [0x00; 32],
+            num_steps: 1,
             },
         };
         assert_noop!(
