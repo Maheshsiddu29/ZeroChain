@@ -26,7 +26,13 @@ pub trait ShieldedTransferHandler {
     fn process_verified_transfer(inputs: &TransferPublicInputs);
 }
 
-//  groth16 proof (bn254, uncompressed, 256 bytes total) 
+/// implemented by pallet-zk-staking, called by pallet-proof-verifier
+/// after slashing fraud proof verification passes.
+pub trait StakingHandler {
+    fn process_slash(inputs: &SlashingPublicInputs);
+}
+
+//  groth16 proof (bn254, uncompressed, 256 bytes total)
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
 pub struct Groth16Proof {
@@ -35,14 +41,14 @@ pub struct Groth16Proof {
     pub c: [u8; G1_UNCOMPRESSED_SIZE],
 }
 
-//  halo2 proof (variable size, typically 1-5kb) 
+//  halo2 proof (variable size, typically 1-5kb)
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct Halo2Proof {
     pub proof_bytes: Vec<u8>,
 }
 
-//  nova proof (zk-origin state lineage) 
+//  nova proof (zk-origin state lineage)
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct NovaProof {
@@ -50,7 +56,7 @@ pub struct NovaProof {
     pub block_height: u64,
 }
 
-//  public inputs for shielded transfers 
+//  public inputs for shielded transfers
 // order must match the circuit: merkle_root, nullifiers, commitments, asset_id, fee
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
@@ -62,7 +68,7 @@ pub struct TransferPublicInputs {
     pub fee_commitment: Hash256,
 }
 
-//  public inputs for validator membership proofs 
+//  public inputs for validator membership proofs
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct MembershipPublicInputs {
@@ -71,7 +77,7 @@ pub struct MembershipPublicInputs {
     pub slot: u64,
 }
 
-//  public inputs for zk-origin state lineage 
+//  public inputs for zk-origin state lineage
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct OriginPublicInputs {
@@ -79,9 +85,20 @@ pub struct OriginPublicInputs {
     pub new_state_root: Hash256,
     pub block_height: u64,
     pub genesis_hash: Hash256,
+    pub num_steps: u64,
 }
 
-//  on-chain verifying keys 
+//  public inputs for equivocation slashing proofs
+
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
+pub struct SlashingPublicInputs {
+    pub validator_root: Hash256,
+    pub nullifier: Hash256,
+    pub block_hash_1: Hash256,
+    pub block_hash_2: Hash256,
+}
+
+//  on-chain verifying keys
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub enum VerifyingKey {
@@ -96,7 +113,7 @@ pub struct ShieldedTransferData {
     pub inputs: TransferPublicInputs,
 }
 
-//  proof submission envelope (what the extrinsic receives) 
+//  proof submission envelope (what the extrinsic receives)
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub enum ProofSubmission {
@@ -109,15 +126,20 @@ pub enum ProofSubmission {
         proof: NovaProof,
         inputs: OriginPublicInputs,
     },
+    Slashing {
+        proof: Groth16Proof,
+        inputs: SlashingPublicInputs,
+    },
 }
 
-//  proof type tag for storage key lookups 
+//  proof type tag for storage key lookups
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
 pub enum ProofType {
     Groth16Transfer,
     Halo2Membership,
     NovaOrigin,
+    Groth16Slashing,
 }
 
 pub const NATIVE_ASSET_ID: AssetId = [0u8; 32];
@@ -212,9 +234,23 @@ mod tests {
             new_state_root: [0x33; 32],
             block_height: 1000,
             genesis_hash: [0x00; 32],
+            num_steps: 100,
         };
         let encoded = inputs.encode();
         let decoded = OriginPublicInputs::decode(&mut &encoded[..]).unwrap();
+        assert_eq!(inputs, decoded);
+    }
+
+    #[test]
+    fn slashing_public_inputs_round_trip() {
+        let inputs = SlashingPublicInputs {
+            validator_root: [0x11; 32],
+            nullifier: [0x22; 32],
+            block_hash_1: [0x33; 32],
+            block_hash_2: [0x44; 32],
+        };
+        let encoded = inputs.encode();
+        let decoded = SlashingPublicInputs::decode(&mut &encoded[..]).unwrap();
         assert_eq!(inputs, decoded);
     }
 

@@ -53,4 +53,5 @@ witnesses/
 .DS_Store
 Thumbs.db
 .vscode/
-.idea/
+.idea/node_modules/
+node_modules/

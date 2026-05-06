@@ -114,6 +114,15 @@ pub mod pallet {
                     ProofCountByType::<T>::mutate(ProofType::NovaOrigin, |c| *c = c.saturating_add(1));
                     Self::deposit_event(Event::ProofVerified { submitter, proof_type: ProofType::NovaOrigin });
                 }
+
+                ProofSubmission::Slashing { proof, inputs } => {
+                    // TODO: wire slashing verification and StakingHandler in Week 2
+                    ensure!(!proof.a.is_empty(), Error::<T>::InvalidProofFormat);
+                    let _ = inputs;
+                    ProofCount::<T>::mutate(|c| *c = c.saturating_add(1));
+                    ProofCountByType::<T>::mutate(ProofType::Groth16Slashing, |c| *c = c.saturating_add(1));
+                    Self::deposit_event(Event::ProofVerified { submitter, proof_type: ProofType::Groth16Slashing });
+                }
             }
 
             Ok(())
