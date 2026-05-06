@@ -1,0 +1,17 @@
+[package]
+name = "network-dandelion"
+version = "0.1.0"
+edition = "2021"
+description = "Dandelion++ privacy protocol for transaction propagation"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+# No external dependencies needed - pure protocol logic
+
+[dev-dependencies]
+# Testing only
+
+[[example]]
+name = "dandelion_demo"
+path = "examples/demo.rs"

@@ -13,6 +13,7 @@ members = [
     "pallets/proof-verifier",
     "pallets/shielded-assets",
     "pallets/zk-validator",
+    "network/dandelion",
     
 ]
 resolver = "2"

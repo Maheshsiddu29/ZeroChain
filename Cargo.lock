@@ -6175,6 +6175,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "network-dandelion"
+version = "0.1.0"
+
+[[package]]
 name = "network-interface"
 version = "2.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10649,8 +10653,10 @@ dependencies = [
  "frame-system",
  "futures",
  "jsonrpsee",
+ "network-dandelion",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
+ "parking_lot 0.12.5",
  "sc-basic-authorship",
  "sc-cli",
  "sc-client-api",
