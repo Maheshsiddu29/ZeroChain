@@ -1,0 +1,53 @@
+[package]
+name = "pallet-zk-staking"
+version = "0.1.0"
+edition = "2021"
+description = "ZK Validator Staking Pallet for ZeroChain"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+# Codec - MUST include max-encoded-len feature
+codec = { workspace = true, features = ["max-encoded-len"] }
+scale-info = { workspace = true }
+
+# Substrate Frame
+frame-support = { workspace = true }
+frame-system = { workspace = true }
+sp-runtime = { workspace = true }
+sp-std = { workspace = true }
+
+# ZeroChain Primitives
+zk-types = { path = "../../primitives/zk-types", default-features = false }
+
+# Optional: Slashing circuit (not used in WASM)
+slashing-circuit = { path = "../../circuits/slashing", default-features = false, optional = true }
+
+# Serialization (std only)
+serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+# Test dependencies (always std)
+sp-core = { workspace = true, default-features = true }
+sp-io = { workspace = true, default-features = true }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "zk-types/std",
+    "serde",
+]
+runtime-benchmarks = [
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+]
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+]
