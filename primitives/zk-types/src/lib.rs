@@ -98,6 +98,35 @@ pub struct SlashingPublicInputs {
     pub block_hash_2: Hash256,
 }
 
+//  bridge message types for cross-chain messaging with ZK-ORIGIN
+
+/// A cross-chain bridge message with origin proof.
+/// The origin proof cryptographically verifies the message
+/// actually came from the claimed source chain.
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
+pub struct BridgeMessage {
+    pub source_chain_id: u32,
+    pub message_hash: Hash256,
+    pub payload: Vec<u8>,
+    pub nonce: u64,
+}
+
+/// Public inputs for bridge origin verification.
+/// Proves a message genuinely originated from the source chain's state machine.
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
+pub struct BridgeOriginInputs {
+    pub source_chain_id: u32,
+    pub source_state_root: Hash256,
+    pub message_hash: Hash256,
+    pub nonce: u64,
+}
+
+/// Implemented by pallet-zk-bridge, called by pallet-proof-verifier
+/// after bridge origin proof verification passes.
+pub trait BridgeHandler {
+    fn process_verified_message(message: &BridgeMessage, inputs: &BridgeOriginInputs);
+}
+
 //  on-chain verifying keys
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
@@ -270,5 +299,31 @@ mod tests {
     #[test]
     fn native_asset_id_is_all_zeros() {
         assert_eq!(NATIVE_ASSET_ID, [0u8; 32]);
+    }
+
+    #[test]
+    fn bridge_message_round_trip() {
+        let msg = BridgeMessage {
+            source_chain_id: 1,
+            message_hash: [0x55; 32],
+            payload: vec![1, 2, 3, 4],
+            nonce: 42,
+        };
+        let encoded = msg.encode();
+        let decoded = BridgeMessage::decode(&mut &encoded[..]).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn bridge_origin_inputs_round_trip() {
+        let inputs = BridgeOriginInputs {
+            source_chain_id: 2,
+            source_state_root: [0x66; 32],
+            message_hash: [0x77; 32],
+            nonce: 100,
+        };
+        let encoded = inputs.encode();
+        let decoded = BridgeOriginInputs::decode(&mut &encoded[..]).unwrap();
+        assert_eq!(inputs, decoded);
     }
 }

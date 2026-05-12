@@ -140,3 +140,19 @@ impl pallet_proof_verifier::Config for Runtime {
 impl pallet_zk_validator::Config for Runtime {
 	type MaxValidators = ConstU32<1024>;
 }
+
+impl pallet_zk_staking::Config for Runtime {
+    type MaxStakers = frame_support::traits::ConstU32<1024>;
+    type MinStakeAmount = frame_support::traits::ConstU128<1000>;
+}
+
+impl pallet_bls_consensus::Config for Runtime {
+    type MaxSigners = frame_support::traits::ConstU32<10>;
+    type MaxSignatureSize = frame_support::traits::ConstU32<256>;
+    type MaxKeySize = frame_support::traits::ConstU32<256>;
+}
+
+impl pallet_zk_bridge::Config for Runtime {
+    type MaxSourceChains = frame_support::traits::ConstU32<64>;
+    type MaxPayloadSize = frame_support::traits::ConstU32<4096>;
+}

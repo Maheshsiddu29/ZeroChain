@@ -13,6 +13,9 @@ members = [
     "pallets/proof-verifier",
     "pallets/shielded-assets",
     "pallets/zk-validator",
+    "pallets/zk-staking",
+    "pallets/bls-consensus",
+    "pallets/zk-bridge",
     
 ]
 resolver = "2"

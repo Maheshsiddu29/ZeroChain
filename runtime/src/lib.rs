@@ -172,4 +172,13 @@ mod runtime {
 
 	#[runtime::pallet_index(10)]
 	pub type ZkValidator = pallet_zk_validator;
+
+	#[runtime::pallet_index(11)]
+    pub type ZkStaking = pallet_zk_staking;
+
+	#[runtime::pallet_index(12)]
+    pub type BlsConsensus = pallet_bls_consensus;
+
+	#[runtime::pallet_index(13)]
+    pub type ZkBridge = pallet_zk_bridge;
 }

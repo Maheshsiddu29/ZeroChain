@@ -6625,6 +6625,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-bls-consensus"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "zk-types",
+]
+
+[[package]]
 name = "pallet-broker"
 version = "0.6.0"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?rev=02ec8d4#02ec8d455cfb5e692f133520c4b367ef4f513f6e"
@@ -6883,6 +6897,34 @@ dependencies = [
  "sp-api",
  "sp-runtime",
  "sp-weights",
+]
+
+[[package]]
+name = "pallet-zk-bridge"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "zk-types",
+]
+
+[[package]]
+name = "pallet-zk-staking"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "zk-types",
 ]
 
 [[package]]
@@ -10695,6 +10737,7 @@ dependencies = [
  "getrandom 0.2.17",
  "pallet-aura",
  "pallet-balances",
+ "pallet-bls-consensus",
  "pallet-grandpa",
  "pallet-proof-verifier",
  "pallet-shielded-assets",
@@ -10703,6 +10746,8 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-zk-bridge",
+ "pallet-zk-staking",
  "pallet-zk-validator",
  "parity-scale-codec",
  "scale-info",
