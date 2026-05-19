@@ -1156,6 +1156,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "blst"
+version = "0.3.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dcdb4c7013139a150f9fc55d123186dbfaba0d912817466282c73ac49e71fb45"
+dependencies = [
+ "cc",
+ "glob",
+ "threadpool",
+ "zeroize",
+]
+
+[[package]]
 name = "bounded-collections"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6726,6 +6738,28 @@ dependencies = [
  "scale-info",
  "sp-core",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-bls-consensus"
+version = "0.1.0"
+dependencies = [
+ "blake2 0.10.6",
+ "blst",
+ "ff",
+ "frame-support",
+ "frame-system",
+ "parity-scale-codec",
+ "rand 0.8.5",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "zk-types",
 ]
 
 [[package]]

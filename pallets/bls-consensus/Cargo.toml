@@ -1,0 +1,61 @@
+[package]
+name = "pallet-bls-consensus"
+version = "0.1.0"
+edition = "2021"
+description = "BLS12-381 Consensus Pallet with FROST DKG"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+codec = { package = "parity-scale-codec", version = "3.6", default-features = false, features = ["derive"] }
+scale-info = { version = "2.11", default-features = false, features = ["derive"] }
+
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
+frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
+sp-std = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
+
+# BLS12-381 - use blst directly (production-grade)
+blst = "0.3"
+
+# Field arithmetic
+ff = "0.13"
+
+# Hashing
+sha2 = "0.10"
+blake2 = "0.10"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+
+# Random
+rand = "0.8"
+
+zk-types = { path = "../../primitives/zk-types", default-features = false }
+
+[dev-dependencies]
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
+
+[features]
+default = ["std"]
+std = [
+    "codec/std",
+    "scale-info/std",
+    "frame-support/std",
+    "frame-system/std",
+    "sp-runtime/std",
+    "sp-std/std",
+    "zk-types/std",
+    "serde",
+    "serde_json",
+]
+runtime-benchmarks = [
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+]
+try-runtime = [
+    "frame-support/try-runtime",
+    "frame-system/try-runtime",
+]

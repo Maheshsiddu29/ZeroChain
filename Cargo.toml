@@ -11,6 +11,7 @@ members = [
     "crypto",
     "cli",
     "prover",
+    "pallets/bls-consensus",
     "pallets/proof-verifier",
     "pallets/shielded-assets",
     "pallets/zk-validator",
