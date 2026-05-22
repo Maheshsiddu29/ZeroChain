@@ -17,6 +17,7 @@ members = [
     "pallets/zk-validator",
     "pallets/zk-staking",
     "network/dandelion",
+    "network/mixnet", "zc-host-functions",
 ]
 resolver = "2"
 

@@ -1,0 +1,35 @@
+[package]
+name = "zc-host-functions"
+version = "0.1.0"
+edition = "2021"
+description = "Host functions for ZK proof verification"
+license = "Apache-2.0"
+publish = false
+
+[dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+hex = "0.4"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Logging
+log = "0.4"
+
+# Arkworks for native verification
+ark-ff = "0.4"
+ark-bn254 = "0.4"
+ark-groth16 = "0.4"
+ark-ec = "0.4"
+ark-serialize = "0.4"
+ark-bls12-381 = "0.4"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+
+[features]
+default = ["std"]
+std = ["serde", "serde_json"]

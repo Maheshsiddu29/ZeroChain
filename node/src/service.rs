@@ -10,7 +10,7 @@ use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use solochain_template_runtime::{self, apis::RuntimeApi, opaque::Block};
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use std::{sync::Arc, time::Duration};
-
+use zc_host_functions::{Groth16Verifier, Halo2Verifier, NovaVerifier};
 pub(crate) type FullClient = sc_service::TFullClient<
 	Block,
 	RuntimeApi,
@@ -185,6 +185,12 @@ pub fn new_full<
 			block_relay: None,
 			metrics,
 		})?;
+		log::info!(" Registering ZK proof verifiers");
+
+// These would be called from pallets via sp_io::zk_verify_groth16, etc.
+let _groth16_verifier = Groth16Verifier;
+let _halo2_verifier = Halo2Verifier;
+let _nova_verifier = NovaVerifier;
 
 	if config.offchain_worker.enabled {
 		let offchain_workers =

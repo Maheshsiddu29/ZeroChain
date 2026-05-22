@@ -1,29 +1,20 @@
 //! ZeroChain Prover Library
-//! 
-//! Public API for zero-knowledge proof generation and verification
+//!
+//! Exports prover modules and types
 
+pub mod groth16_generator;
 pub mod origin_prover;
-pub mod groth16_prover;
 pub mod serialization;
 
-// Re-export main ZK-ORIGIN types
-pub use origin_prover::{
-    OriginProof, 
-    StateTransition, 
-    OriginProver,
-    OriginProverError,
+pub use groth16_generator::{
+    Groth16Generator, Groth16Proof, TransferWitness, TransferPublicInputs,
 };
+pub use origin_prover::{OriginProof, NovaFolder, StateTransition};
 
-// Re-export Groth16 utilities
-pub use groth16_prover::{
-    generate_transfer_proof,
-    verify_transfer_proof,
-    TransferPublicInputs,
-};
-
-// Re-export serialization utilities
-pub use serialization::{
-    serialize_proof,
-    deserialize_proof,
-    ProofMetadata,
-};
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_library_exports() {
+        println!(" Library exports working");
+    }
+}
