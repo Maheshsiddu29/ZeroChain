@@ -123,28 +123,9 @@ pub type Executive = frame_executive::Executive<
 	AllPalletsWithSystem,
 >;
 // In pallet declarations
-pub use pallet_zk_staking;
 
-construct_runtime!(
-    pub enum Runtime {
-        // ... existing pallets
-        ZkStaking: pallet_zk_staking,
-    }
-);
 
-// ZkStaking configuration
-parameter_types! {
-    pub const MinStakeAmount: u128 = 100 * CENTS; // Minimum stake
-    pub const EpochLength: u32 = 600; // 10 minutes (60 blocks @ 10s)
-    pub const MaxValidators: u32 = 1_000; // Allow up to 1000 validators
-}
 
-impl pallet_zk_staking::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type MinStakeAmount = MinStakeAmount;
-    type EpochLength = EpochLength;
-    type MaxValidators = MaxValidators;
-}
 #[frame_support::runtime]
 mod runtime {
 	#[runtime::runtime]

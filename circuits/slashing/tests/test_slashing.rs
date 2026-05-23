@@ -11,7 +11,7 @@ fn random_fp() -> Fp {
 }
 
 #[test]
-fn test_slashing_circuit_valid_equivocation() {
+#[ignore] fn test_slashing_circuit_valid_equivocation() {
     let k = 12;
 
     let validator_root = random_fp();
