@@ -22,7 +22,7 @@ Three things, none of which exist together in any other chain right now:
 **Verified state lineage.** This is the ZK-ORIGIN piece. Every state change on the chain carries a recursive proof (Nova folding) that traces it back to a legitimate origin. Bridges between blockchains have lost over $2 billion because chains could verify a message was formatted correctly but couldn't verify it actually came from where it said it did. ZK-ORIGIN fixes that problem.
 
 ---
-
+```
 ##  Project Status
 
 **Week 1-4:  PRODUCTION READY**
@@ -99,7 +99,7 @@ Three things, none of which exist together in any other chain right now:
     │    - 16.3x compression                         │
     │    - Recursive verification                    │
     └─────────────────────────────────────────────────┘
-```
+
 
 ---
 ```
