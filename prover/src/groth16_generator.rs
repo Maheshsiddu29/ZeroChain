@@ -3,6 +3,10 @@
 //! Generates Groth16 proofs for shielded transfers
 //! Uses arkworks for BLS12-381 curve operations
 
+use ark_bn254::{Bn254, Fr};
+use ark_ff::{Field, PrimeField};
+use ark_serialize::CanonicalSerialize;
+use std::error::Error;
 use std::fmt;
 
 /// Groth16 Generation Error
@@ -25,7 +29,7 @@ impl fmt::Display for Groth16Error {
     }
 }
 
-impl std::error::Error for Groth16Error {}
+impl Error for Groth16Error {}
 
 /// Transfer witness (private inputs)
 #[derive(Clone, Debug)]
@@ -158,105 +162,28 @@ impl TransferPublicInputs {
     }
 
     /// Convert to field elements for circuit
-    pub fn to_field_elements(&self) -> Result<Vec<[u8; 32]>, Groth16Error> {
+    pub fn to_field_elements(&self) -> Result<Vec<Fr>, Groth16Error> {
         let mut elements = Vec::new();
 
         // Convert each [u8; 32] to field element
-        elements.push(self.commitment);
-        elements.push(self.nullifier);
-        elements.push(self.root);
-        elements.push(self.recipient_commitment);
+        let commitment_fe = Self::bytes_to_field(&self.commitment)?;
+        let nullifier_fe = Self::bytes_to_field(&self.nullifier)?;
+        let root_fe = Self::bytes_to_field(&self.root)?;
+        let recipient_fe = Self::bytes_to_field(&self.recipient_commitment)?;
+
+        elements.push(commitment_fe);
+        elements.push(nullifier_fe);
+        elements.push(root_fe);
+        elements.push(recipient_fe);
+        elements.push(Fr::from(self.amount));
 
         Ok(elements)
     }
-}
 
-/// Groth16 Proof
-#[derive(Clone, Debug)]
-pub struct Groth16Proof {
-    /// Proof bytes (96 bytes for BLS12-381)
-    pub proof: Vec<u8>,
-    /// Public inputs
-    pub public_inputs: TransferPublicInputs,
-}
-
-impl Groth16Proof {
-    /// Serialize proof for on-chain submission
-    pub fn to_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::new();
-
-        // Serialize proof
-        bytes.extend_from_slice(&(self.proof.len() as u32).to_le_bytes());
-        bytes.extend_from_slice(&self.proof);
-
-        // Serialize public inputs
-        bytes.extend_from_slice(&self.public_inputs.commitment);
-        bytes.extend_from_slice(&self.public_inputs.nullifier);
-        bytes.extend_from_slice(&self.public_inputs.root);
-        bytes.extend_from_slice(&self.public_inputs.recipient_commitment);
-        bytes.extend_from_slice(&self.public_inputs.amount.to_le_bytes());
-
-        bytes
-    }
-
-    /// Deserialize proof from bytes
-    pub fn from_bytes(data: &[u8]) -> Result<Self, Groth16Error> {
-        if data.len() < 4 {
-            return Err(Groth16Error::SerializationError(
-                "Data too short".to_string(),
-            ));
-        }
-
-        let mut offset = 0;
-        let proof_len = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
-        offset += 4;
-
-        if offset + proof_len + 128 > data.len() {
-            return Err(Groth16Error::SerializationError(
-                "Insufficient data".to_string(),
-            ));
-        }
-
-        let proof = data[offset..offset + proof_len].to_vec();
-        offset += proof_len;
-
-        let mut commitment = [0u8; 32];
-        commitment.copy_from_slice(&data[offset..offset + 32]);
-        offset += 32;
-
-        let mut nullifier = [0u8; 32];
-        nullifier.copy_from_slice(&data[offset..offset + 32]);
-        offset += 32;
-
-        let mut root = [0u8; 32];
-        root.copy_from_slice(&data[offset..offset + 32]);
-        offset += 32;
-
-        let mut recipient_commitment = [0u8; 32];
-        recipient_commitment.copy_from_slice(&data[offset..offset + 32]);
-        offset += 32;
-
-        let amount = u128::from_le_bytes(
-            data[offset..offset + 16]
-                .try_into()
-                .map_err(|_| Groth16Error::SerializationError("Invalid amount".to_string()))?,
-        );
-
-        Ok(Groth16Proof {
-            proof,
-            public_inputs: TransferPublicInputs {
-                commitment,
-                nullifier,
-                root,
-                recipient_commitment,
-                amount,
-            },
-        })
-    }
-
-    /// Get proof size
-    pub fn size(&self) -> usize {
-        self.proof.len()
+    /// Convert 32 bytes to field element
+    fn bytes_to_field(bytes: &[u8; 32]) -> Result<Fr, Groth16Error> {
+        Fr::from_le_bytes_mod_order(bytes);
+        Ok(Fr::from_le_bytes_mod_order(bytes))
     }
 }
 
@@ -362,25 +289,109 @@ impl Default for Groth16Generator {
     }
 }
 
+/// Groth16 Proof
+#[derive(Clone, Debug)]
+pub struct Groth16Proof {
+    /// Proof bytes (96 bytes for BLS12-381)
+    pub proof: Vec<u8>,
+    /// Public inputs
+    pub public_inputs: TransferPublicInputs,
+}
+
+impl Groth16Proof {
+    /// Serialize proof for on-chain submission
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+
+        // Serialize proof
+        bytes.extend_from_slice(&(self.proof.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(&self.proof);
+
+        // Serialize public inputs
+        bytes.extend_from_slice(&self.public_inputs.commitment);
+        bytes.extend_from_slice(&self.public_inputs.nullifier);
+        bytes.extend_from_slice(&self.public_inputs.root);
+        bytes.extend_from_slice(&self.public_inputs.recipient_commitment);
+        bytes.extend_from_slice(&self.public_inputs.amount.to_le_bytes());
+
+        bytes
+    }
+
+    /// Deserialize proof from bytes
+    pub fn from_bytes(data: &[u8]) -> Result<Self, Groth16Error> {
+        if data.len() < 4 {
+            return Err(Groth16Error::SerializationError(
+                "Data too short".to_string(),
+            ));
+        }
+
+        let mut offset = 0;
+        let proof_len = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
+        offset += 4;
+
+        if offset + proof_len + 128 > data.len() {
+            return Err(Groth16Error::SerializationError(
+                "Insufficient data".to_string(),
+            ));
+        }
+
+        let proof = data[offset..offset + proof_len].to_vec();
+        offset += proof_len;
+
+        let mut commitment = [0u8; 32];
+        commitment.copy_from_slice(&data[offset..offset + 32]);
+        offset += 32;
+
+        let mut nullifier = [0u8; 32];
+        nullifier.copy_from_slice(&data[offset..offset + 32]);
+        offset += 32;
+
+        let mut root = [0u8; 32];
+        root.copy_from_slice(&data[offset..offset + 32]);
+        offset += 32;
+
+        let mut recipient_commitment = [0u8; 32];
+        recipient_commitment.copy_from_slice(&data[offset..offset + 32]);
+        offset += 32;
+
+        let amount = u128::from_le_bytes(
+            data[offset..offset + 16]
+                .try_into()
+                .map_err(|_| Groth16Error::SerializationError("Invalid amount".to_string()))?,
+        );
+
+        Ok(Groth16Proof {
+            proof,
+            public_inputs: TransferPublicInputs {
+                commitment,
+                nullifier,
+                root,
+                recipient_commitment,
+                amount,
+            },
+        })
+    }
+
+    /// Get proof size
+    pub fn size(&self) -> usize {
+        self.proof.len()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-      fn create_test_witness() -> TransferWitness {
+    fn create_test_witness() -> TransferWitness {
         TransferWitness {
             secret: [1u8; 32],
             randomness: [2u8; 32],
             amount: 1000,
-            merkle_path: vec![[3u8; 32]; 20],  
-            merkle_indices: {
-                let mut v = Vec::new();
-                for i in 0..20 {
-                    v.push(i % 2 == 0);  
-                }
-                v
-            },
+            merkle_path: vec![[3u8; 32]; 20],
+            merkle_indices: vec![false, true; 10],
         }
     }
+
     #[test]
     fn test_witness_validation() {
         let witness = create_test_witness();
@@ -412,7 +423,7 @@ mod tests {
     }
 
     #[test]
-      fn test_groth16_proof_generation() {
+    fn test_groth16_proof_generation() {
         let generator = Groth16Generator::new().unwrap();
         let witness = create_test_witness();
 
@@ -421,7 +432,7 @@ mod tests {
 
         let p = proof.unwrap();
         assert_eq!(p.proof.len(), 96);
-        assert_ne!(p.public_inputs.commitment, [0u8; 32]);  
+        assert!(!p.public_inputs.commitment == [0u8; 32]);
     }
 
     #[test]

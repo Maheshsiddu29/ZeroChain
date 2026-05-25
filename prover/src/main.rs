@@ -1,5 +1,6 @@
 //! ZeroChain Prover CLI with Groth16 Support
 
+mod groth16_prover;
 mod groth16_generator;
 mod origin_prover;
 mod serialization;
@@ -162,7 +163,7 @@ fn generate_origin_proof(blocks_file: &PathBuf, output: &PathBuf) -> Result<()> 
     let data = fs::read_to_string(blocks_file)?;
     let transitions: Vec<serde_json::Value> = serde_json::from_str(&data)?;
 
-    info!("📊 Loaded {} state transitions", transitions.len());
+    info!(" Loaded {} state transitions", transitions.len());
 
     // Initialize Nova folder
     let mut folder = NovaFolder::new([0u8; 32]);
@@ -186,31 +187,28 @@ fn generate_origin_proof(blocks_file: &PathBuf, output: &PathBuf) -> Result<()> 
             new_root: next,
         };
 
-        // Convert String error to anyhow::Error
-        folder.fold_step(&transition)
-            .map_err(|e| anyhow::anyhow!("Folding failed: {}", e))?;
+        folder.fold_step(&transition)?;
 
         if (i + 1) % 20 == 0 {
-            info!("  ✓ Folded {} transitions", i + 1);
+            info!("   Folded {} transitions", i + 1);
         }
     }
 
     let fold_time = fold_start.elapsed();
-    info!("✓ Nova folding complete: {}ms", fold_time.as_millis());
+    info!(" Nova folding complete: {}ms", fold_time.as_millis());
 
     // Generate proof
     let prove_start = std::time::Instant::now();
-    let proof = folder.prove()
-        .map_err(|e| anyhow::anyhow!("Proof generation failed: {}", e))?;
+    let proof = folder.prove()?;
     let prove_time = prove_start.elapsed();
 
-    info!("✓ SNARK proof generated: {}ms", prove_time.as_millis());
+    info!(" SNARK proof generated: {}ms", prove_time.as_millis());
 
     // Serialize and save
     let proof_bytes = proof.to_bytes();
     fs::write(output, &proof_bytes)?;
 
-    info!("📦 Proof serialized: {} bytes", proof_bytes.len());
+    info!(" Proof serialized: {} bytes", proof_bytes.len());
     info!("  Compression: {:.1}x", 
         (transitions.len() * 64) as f64 / proof_bytes.len() as f64
     );

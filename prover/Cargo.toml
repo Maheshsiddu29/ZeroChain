@@ -6,42 +6,40 @@ description = "ZK Prover for Groth16, Halo2, and ZK-ORIGIN proofs"
 
 [dependencies]
 # Arkworks
-ark-ff = { workspace = true }
-ark-bn254 = { workspace = true }
-ark-groth16 = { workspace = true }
-ark-serialize = { workspace = true }
-ark-snark = { workspace = true }
+ark-ff = "0.4"
+ark-bn254 = "0.4"
+ark-groth16 = "0.4"
+ark-serialize = "0.4"
+ark-ec = "0.4"
 
 # Hashing
-sha2 = { workspace = true }
-blake2 = { workspace = true }
+sha2 = "0.10"
+blake2 = "0.10"
 
 # Serialization
-serde = { workspace = true }
-serde_json = { workspace = true }
-hex = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hex = "0.4"
 
 # Error handling
-anyhow = { workspace = true }
-thiserror = { workspace = true }
+anyhow = "1.0"
+thiserror = "1.0"
 
 # Utilities
-rand = { workspace = true }
-log = { workspace = true }
-env_logger = { workspace = true }  # ADD THIS
+rand = "0.8"
 
-# CLI
-structopt = "0.3"
+# Logging
+log = "0.4"
+env_logger = "0.11"
 
 # Circuit crates
-transfer-circuit = { path = "../circuits/transfer" }
-membership-circuit = { path = "../circuits/membership" }
-origin-circuit = { path = "../circuits/origin" }
+circuits-transfer = { path = "../circuits/transfer" }
+circuits-membership = { path = "../circuits/membership" }
+circuits-origin = { path = "../circuits/origin" }
 slashing-circuit = { path = "../circuits/slashing" }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
-tempfile = "3.8"  # ADD THIS for tests
 
 [[bin]]
 name = "zerochain-prover"
