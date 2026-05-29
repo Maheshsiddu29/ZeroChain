@@ -1,143 +1,226 @@
-//! ZeroChain Prover CLI
+//! Zero Chain ZK Prover CLI
+
+use clap::{Parser, Subcommand};
+use std::path::PathBuf;
+use anyhow::Result;
 
 mod groth16_prover;
 mod origin_prover;
 mod serialization;
 
-use std::path::PathBuf;
-use structopt::StructOpt;
-use anyhow::Result;
-use log::info;
+use groth16_prover as transfer_prover;
 
-// NO need to import circuits here - they're used in submodules
-
-#[derive(StructOpt, Debug)]
-#[structopt(name = "ZeroChain Prover")]
-struct Opt {
-    /// Proof mode
-    #[structopt(short, long, possible_values = &["transfer", "membership", "origin", "slashing"])]
-    mode: String,
-
-    /// Witness file (for transfer/membership)
-    #[structopt(short, long)]
-    witness: Option<PathBuf>,
-
-    /// State transitions file (for origin mode)
-    #[structopt(short, long)]
-    blocks_file: Option<PathBuf>,
-
-    /// Equivocation data (for slashing mode)
-    #[structopt(short, long)]
-    equivocation_data: Option<PathBuf>,
-
-    /// Output proof file
-    #[structopt(short, long)]
-    output: PathBuf,
-
-    /// Verbose logging
-    #[structopt(short, long)]
-    verbose: bool,
+#[derive(Parser)]
+#[command(name = "zk-prover")]
+#[command(version = "0.1.0")]
+#[command(about = "Zero Chain ZK Proof Generator")]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
 }
 
-fn main() -> Result<()> {
-    let opt = Opt::from_args();
+#[derive(Subcommand)]
+enum Commands {
+    /// Run trusted setup for a circuit
+    Setup {
+        #[arg(long)]
+        circuit: String,
+        #[arg(long, default_value = "keys")]
+        output_dir: PathBuf,
+    },
 
-    // Setup logging
-    let log_level = if opt.verbose { "debug" } else { "info" };
-    env_logger::Builder::from_default_env()
-        .filter_level(log_level.parse()?)
-        .init();
+    /// Generate a shielded transfer proof
+    Transfer {
+        #[arg(long)]
+        witness: PathBuf,
+        #[arg(long)]
+        proving_key: Option<PathBuf>,
+        #[arg(long, default_value = "proof.bin")]
+        output: PathBuf,
+    },
 
-    info!("🚀 ZeroChain Prover started (mode: {})", opt.mode);
+    /// Verify a proof
+    Verify {
+        #[arg(long)]
+        proof: PathBuf,
+        #[arg(long)]
+        vk: PathBuf,
+        #[arg(long)]
+        public_inputs: Option<PathBuf>,
+    },
 
-    match opt.mode.as_str() {
+    /// Generate ZK-ORIGIN proof
+    Origin {
+        #[arg(long)]
+        prev_state: String,
+        #[arg(long)]
+        new_state: String,
+        #[arg(long)]
+        height: u64,
+        #[arg(long)]
+        tx_hash: String,
+        #[arg(long, default_value = "accumulator.bin")]
+        accumulator: PathBuf,
+        #[arg(long, default_value = "origin_proof.json")]
+        output: PathBuf,
+    },
+
+    /// Export hash parameters
+    ExportPoseidon {
+        #[arg(long, default_value = "poseidon_params.json")]
+        output: PathBuf,
+    },
+}
+
+fn main() {
+    env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or("info")
+    ).init();
+
+    let cli = Cli::parse();
+
+    let result = match cli.command {
+        Commands::Setup { circuit, output_dir } => run_setup(&circuit, &output_dir),
+        Commands::Transfer { witness, proving_key, output } => run_transfer(witness, proving_key, output),
+        Commands::Verify { proof, vk, public_inputs } => run_verify(proof, vk, public_inputs),
+        Commands::Origin { prev_state, new_state, height, tx_hash, accumulator, output } => {
+            run_origin(prev_state, new_state, height, tx_hash, accumulator, output)
+        }
+        Commands::ExportPoseidon { output } => run_export_poseidon(output),
+    };
+
+    if let Err(e) = result {
+        log::error!("Error: {}", e);
+        std::process::exit(1);
+    }
+}
+
+fn run_setup(circuit: &str, output_dir: &PathBuf) -> Result<()> {
+    log::info!("Running setup for circuit: {}", circuit);
+    std::fs::create_dir_all(output_dir)?;
+
+    match circuit {
         "transfer" => {
-            info!("📝 Generating Groth16 transfer proof...");
-            let witness_file = opt.witness.ok_or(anyhow::anyhow!("--witness required for transfer mode"))?;
-            groth16_prover::generate_transfer_proof(&witness_file, &opt.output)?;
-            info!("✅ Proof saved to {}", opt.output.display());
-        }
+            let (pk, vk) = transfer_prover::setup()?;
 
-        "membership" => {
-            info!("🌳 Generating Halo2 membership proof...");
-            // TODO: Implement membership proof generation
-            info!("⚠️  Membership proof generation not yet implemented");
-        }
+            let pk_path = output_dir.join("transfer.pk");
+            let vk_path = output_dir.join("transfer.vk");
 
+            transfer_prover::save_proving_key(&pk, &pk_path)?;
+            transfer_prover::save_verifying_key(&vk, &vk_path)?;
+
+            log::info!("Transfer circuit keys saved to {}", output_dir.display());
+        }
         "origin" => {
-            info!("🔗 Generating ZK-ORIGIN state lineage proof...");
-            let blocks_file = opt.blocks_file
-                .ok_or(anyhow::anyhow!("--blocks-file required for origin mode"))?;
-            generate_origin_proof(&blocks_file, &opt.output)?;
-            info!("✅ Proof saved to {}", opt.output.display());
+            log::info!("Origin circuit uses Nova folding - no traditional setup needed");
+            log::info!("Accumulator will be created on first proof");
         }
-
-        "slashing" => {
-            info!("⚔️  Generating slashing fraud proof...");
-            // TODO: Implement slashing proof generation
-            info!("⚠️  Slashing proof generation not yet implemented");
+        _ => {
+            anyhow::bail!("Unknown circuit: {}. Supported: transfer, origin", circuit);
         }
-
-        _ => anyhow::bail!("Unknown mode: {}", opt.mode),
     }
 
-    info!("🎉 Proof generation complete!");
     Ok(())
 }
 
-fn generate_origin_proof(blocks_file: &PathBuf, output: &PathBuf) -> Result<()> {
-    use origin_prover::{OriginProver, StateTransition};
-    use std::fs;
+fn run_transfer(witness: PathBuf, proving_key: Option<PathBuf>, output: PathBuf) -> Result<()> {
+    log::info!("Generating shielded transfer proof...");
 
-    // Load state transitions from JSON
-    let data = fs::read_to_string(blocks_file)?;
-    let transitions: Vec<serde_json::Value> = serde_json::from_str(&data)?;
+    let witness_json: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(&witness)?
+    )?;
 
-    info!("📊 Loaded {} state transitions", transitions.len());
+    let circuit = transfer_prover::build_circuit_from_witness(&witness_json)?;
+    let public_inputs = transfer_prover::extract_public_inputs(&circuit);
 
-    // Create prover with genesis root
-    let genesis = [0u8; 32]; // Replace with actual genesis from file
-    let mut prover = OriginProver::new(genesis)?;
+    let pk = if let Some(pk_path) = proving_key {
+        transfer_prover::load_proving_key(&pk_path)?
+    } else {
+        log::info!("No proving key provided, running setup and saving keys...");
+        let (pk, vk) = transfer_prover::setup()?;
 
-    // Fold each transition
-    for (i, tx) in transitions.iter().enumerate() {
-        let prev_root_hex = tx["prev_root"].as_str().unwrap_or("0000000000000000000000000000000000000000000000000000000000000000");
-        let new_root_hex = tx["new_root"].as_str().unwrap_or("0000000000000000000000000000000000000000000000000000000000000000");
-        let block_number = tx["block_number"].as_u64().unwrap_or(i as u64);
+        let keys_dir = PathBuf::from("keys");
+        std::fs::create_dir_all(&keys_dir)?;
+        transfer_prover::save_proving_key(&pk, &keys_dir.join("transfer.pk"))?;
+        transfer_prover::save_verifying_key(&vk, &keys_dir.join("transfer.vk"))?;
+        log::info!("Keys saved to keys/ directory");
 
-        // Decode hex strings
-        let prev_root_vec = hex::decode(prev_root_hex)?;
-        let new_root_vec = hex::decode(new_root_hex)?;
+        pk
+    };
 
-        let mut prev = [0u8; 32];
-        let mut next = [0u8; 32];
-        
-        // Copy with bounds checking
-        let prev_len = prev_root_vec.len().min(32);
-        let next_len = new_root_vec.len().min(32);
-        
-        prev[..prev_len].copy_from_slice(&prev_root_vec[..prev_len]);
-        next[..next_len].copy_from_slice(&new_root_vec[..next_len]);
+    let proof = transfer_prover::prove(&pk, circuit)?;
 
-        let transition = StateTransition::new(prev, next, block_number);
-        prover.fold_step(transition)?;
+    let submission = serialization::create_transfer_submission(&proof, &public_inputs)?;
+    std::fs::write(&output, &submission)?;
 
-        if (i + 1) % 10 == 0 {
-            info!("  ✓ Folded {} transitions", i + 1);
-        }
+    log::info!("Proof saved to {}", output.display());
+    log::info!("Submission size: {} bytes", submission.len());
+
+    Ok(())
+}
+
+fn run_verify(proof_path: PathBuf, vk_path: PathBuf, _public_inputs: Option<PathBuf>) -> Result<()> {
+    log::info!("Verifying proof...");
+
+    let vk = transfer_prover::load_verifying_key(&vk_path)?;
+
+    let submission_bytes = std::fs::read(&proof_path)?;
+    let (proof, public_inputs) = serialization::parse_transfer_submission(&submission_bytes)?;
+
+    let valid = transfer_prover::verify(&vk, &proof, &public_inputs)?;
+
+    if valid {
+        log::info!("✓ Proof is VALID");
+    } else {
+        log::error!("✗ Proof is INVALID");
+        std::process::exit(1);
     }
 
-    // Generate proof
-    let proof = prover.prove()?;
-    info!("✨ Proof generated: {} steps, accumulator {} bytes",
-        proof.num_steps,
-        proof.accumulator.len()
-    );
+    Ok(())
+}
 
-    // Save proof
-    let bytes = proof.to_bytes();
-    fs::write(output, &bytes)?;
-    info!("📦 Proof serialized: {} bytes", bytes.len());
+fn run_origin(
+    prev_state: String,
+    new_state: String,
+    height: u64,
+    tx_hash: String,
+    accumulator: PathBuf,
+    output: PathBuf,
+) -> Result<()> {
+    log::info!("Generating ZK-ORIGIN proof for block {}...", height);
+
+    let result = origin_prover::generate_origin_proof(
+        &prev_state,
+        &new_state,
+        height,
+        &tx_hash,
+        &accumulator,
+    )?;
+
+    let json = serde_json::to_string_pretty(&result)?;
+    std::fs::write(&output, json)?;
+
+    log::info!("Origin proof saved to {}", output.display());
+
+    Ok(())
+}
+
+fn run_export_poseidon(output_path: PathBuf) -> Result<()> {
+    log::info!("Exporting hash parameters...");
+
+    let params = serde_json::json!({
+        "hash_type": "simplified_addition",
+        "description": "Currently using simplified addition hash for development",
+        "commitment": "value + asset_id + blinding + owner_pubkey",
+        "nullifier": "commitment + secret_key",
+        "merkle_hash": "left + right",
+        "note": "Replace with Poseidon for production"
+    });
+
+    let json = serde_json::to_string_pretty(&params)?;
+    std::fs::write(&output_path, json)?;
+
+    log::info!("Parameters saved to {}", output_path.display());
 
     Ok(())
 }

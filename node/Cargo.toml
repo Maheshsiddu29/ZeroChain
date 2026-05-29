@@ -21,8 +21,7 @@ workspace = true
 clap = { features = ["derive"], workspace = true }
 futures = { features = ["thread-pool"], workspace = true }
 jsonrpsee = { version = "0.24", features = ["server"] }
-network-dandelion = { path = "../network/dandelion" }
-parking_lot = "0.12"
+
 # substrate client
 sc-basic-authorship = { workspace = true, default-features = true }
 sc-cli = { workspace = true, default-features = true }

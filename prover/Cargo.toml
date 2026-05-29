@@ -1,48 +1,65 @@
 [package]
-name = "zerochain-prover"
+name = "zk-prover"
 version = "0.1.0"
 edition = "2021"
-description = "ZK Prover for Groth16, Halo2, and ZK-ORIGIN proofs"
+description = "Zero Chain ZK Proof Generator"
+
+[[bin]]
+name = "zk-prover"
+path = "src/main.rs"
 
 [dependencies]
-# Arkworks
-ark-ff = { workspace = true }
-ark-bn254 = { workspace = true }
-ark-groth16 = { workspace = true }
-ark-serialize = { workspace = true }
-ark-snark = { workspace = true }
-
-# Hashing
-sha2 = { workspace = true }
-blake2 = { workspace = true }
+# CLI
+clap = { version = "4.4", features = ["derive"] }
+env_logger = "0.10"
+log = { workspace = true }
 
 # Serialization
 serde = { workspace = true }
 serde_json = { workspace = true }
 hex = { workspace = true }
 
+# SCALE codec for zk-types
+codec = { workspace = true }
+
+# ZK primitives
+ark-ff = { workspace = true }
+ark-ec = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-groth16 = { workspace = true }
+ark-snark = { workspace = true }
+ark-serialize = { workspace = true }
+ark-std = { workspace = true }
+ark-relations = { workspace = true }
+ark-r1cs-std = { workspace = true }
+
+# Hashing
+sha2 = "0.10"
+
 # Error handling
 anyhow = { workspace = true }
-thiserror = { workspace = true }
 
-# Utilities
-rand = { workspace = true }
-log = { workspace = true }
-env_logger = { workspace = true }  # ADD THIS
-
-# CLI
-structopt = "0.3"
-
-# Circuit crates
+# Local dependencies
+zk-types = { workspace = true }
 transfer-circuit = { path = "../circuits/transfer" }
-membership-circuit = { path = "../circuits/membership" }
 origin-circuit = { path = "../circuits/origin" }
-slashing-circuit = { path = "../circuits/slashing" }
+
+# Randomness - override workspace to get std features
+rand = { version = "0.8", features = ["std", "std_rng"] }
+
+[features]
+default = ["std"]
+std = [
+    "ark-ff/std",
+    "ark-ec/std",
+    "ark-bn254/std",
+    "ark-groth16/std",
+    "ark-serialize/std",
+    "ark-std/std",
+    "ark-relations/std",
+    "ark-r1cs-std/std",
+    "zk-types/std",
+]
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full"] }
-tempfile = "3.8"  # ADD THIS for tests
-
-[[bin]]
-name = "zerochain-prover"
-path = "src/main.rs"
+tempfile = "3"

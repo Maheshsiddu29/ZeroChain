@@ -122,9 +122,6 @@ pub type Executive = frame_executive::Executive<
 	Runtime,
 	AllPalletsWithSystem,
 >;
-// In pallet declarations
-
-
 
 #[frame_support::runtime]
 mod runtime {

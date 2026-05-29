@@ -1,35 +1,23 @@
 [package]
 name = "pallet-zk-staking"
+description = "Anonymous staking with ZK-based slashing for Zero Chain."
 version = "0.1.0"
 edition = "2021"
-description = "ZK Validator Staking Pallet for ZeroChain"
-license = "Apache-2.0"
+license = "BUSL-1.1"
 publish = false
 
 [dependencies]
-# Codec - MUST include max-encoded-len feature
-codec = { workspace = true, features = ["max-encoded-len"] }
-scale-info = { workspace = true }
-
-# Substrate Frame
-frame-support = { workspace = true }
-frame-system = { workspace = true }
-sp-runtime = { workspace = true }
-sp-std = { workspace = true }
-
-# ZeroChain Primitives
+codec = { package = "parity-scale-codec", version = "3.6", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11", default-features = false, features = ["derive"] }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
+frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 zk-types = { path = "../../primitives/zk-types", default-features = false }
 
-# Optional: Slashing circuit (not used in WASM)
-slashing-circuit = { path = "../../circuits/slashing", default-features = false, optional = true }
-
-# Serialization (std only)
-serde = { workspace = true, optional = true }
-
 [dev-dependencies]
-# Test dependencies (always std)
-sp-core = { workspace = true, default-features = true }
-sp-io = { workspace = true, default-features = true }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
 
 [features]
 default = ["std"]
@@ -39,15 +27,15 @@ std = [
     "frame-support/std",
     "frame-system/std",
     "sp-runtime/std",
-    "sp-std/std",
     "zk-types/std",
-    "serde",
 ]
 runtime-benchmarks = [
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
+    "sp-runtime/runtime-benchmarks",
 ]
 try-runtime = [
     "frame-support/try-runtime",
     "frame-system/try-runtime",
+    "sp-runtime/try-runtime",
 ]

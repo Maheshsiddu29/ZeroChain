@@ -1,4 +1,3 @@
-pub mod dandelion_adapter;
 
 // Keep existing modules
 pub mod benchmarking;

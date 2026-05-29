@@ -7,7 +7,6 @@ members = [
     "circuits/transfer",
     "circuits/origin",
     "circuits/membership",
-    "circuits/slashing",
     "crypto",
     "cli",
     "prover",
@@ -17,8 +16,7 @@ members = [
     "pallets/zk-staking",
     "pallets/bls-consensus",
     "pallets/zk-bridge",
-    "network/dandelion",
-
+    
 ]
 resolver = "2"
 
@@ -55,7 +53,7 @@ sc-transaction-pool = { git = "https://github.com/paritytech/polkadot-sdk.git", 
 sc-transaction-pool-api = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 
 # ============================================
-# SUBSTRATE PRIMITIVES (DEDUPLICATED)
+# SUBSTRATE PRIMITIVES
 # ============================================
 sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-block-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
@@ -70,7 +68,6 @@ sp-keyring = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02
 sp-offchain = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-session = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
-sp-std = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-storage = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-transaction-pool = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
@@ -136,16 +133,6 @@ ark-snark = { version = "0.4", default-features = false }
 # ============================================
 halo2_proofs = { version = "0.3.0", default-features = false }
 halo2curves = { version = "0.6.0", default-features = false }
-ff = { version = "0.13", default-features = false }
-
-# ============================================
-# HASHING & SERIALIZATION
-# ============================================
-sha2 = { version = "0.10", default-features = false }
-blake2 = { version = "0.10", default-features = false }
-hex = { version = "0.4", default-features = false, features = ["alloc"] }
-serde = { version = "1.0", default-features = false, features = ["derive", "alloc"] }
-serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 
 # ============================================
 # THIRD PARTY
@@ -155,19 +142,25 @@ codec = { package = "parity-scale-codec", version = "3.6", default-features = fa
 color-print = "0.3.6"
 docify = "0.4.1"
 futures = { version = "0.3", features = ["thread-pool"] }
+
+
 hex-literal = "1.1.0"
+hex = { version = "0.4", default-features = false, features = ["alloc"] }
 jsonrpsee = { version = "0.26", features = ["server"] }
+
+
+
+
 log = { version = "0.4", default-features = false }
-env_logger = "0.11"
 prometheus-endpoint = { package = "substrate-prometheus-endpoint", git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 scale-info = { version = "2.11", default-features = false, features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 smallvec = "1.13"
 thiserror = "1.0"
 anyhow = "1.0"
 tokio = { version = "1.36", features = ["full"] }
 subxt = "0.34"
-rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+rand = { version = "0.8", default-features = false }
 zeroize = { version = "1.7", default-features = false, features = ["derive"] }
 subtle = { version = "2.5", default-features = false }
-parking_lot = "0.12"
-structopt = "0.3"
