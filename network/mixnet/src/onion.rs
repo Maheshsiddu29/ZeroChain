@@ -75,7 +75,7 @@ impl OnionEncryption {
         let cipher = ChaCha20Poly1305::new_from_slice(&key)
             .map_err(|e| OnionError::EncryptionFailed(e.to_string()))?;
 
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::<ChaCha20Poly1305>::from_slice(&nonce_bytes);
 
         cipher
             .encrypt(nonce, plaintext)
@@ -90,7 +90,7 @@ impl OnionEncryption {
         let cipher = ChaCha20Poly1305::new_from_slice(&key)
             .map_err(|e| OnionError::DecryptionFailed(e.to_string()))?;
 
-        let nonce = Nonce::from_slice(&nonce_bytes);
+        let nonce = Nonce::<ChaCha20Poly1305>::from_slice(&nonce_bytes);
 
         cipher
             .decrypt(nonce, ciphertext)

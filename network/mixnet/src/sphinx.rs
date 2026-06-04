@@ -27,6 +27,7 @@ pub enum SphinxError {
     InvalidRouteInfo,
     NoMoreRelays,
     InvalidEphemeralKey,
+    OnionError(String),
 }
 
 impl fmt::Display for SphinxError {
@@ -38,11 +39,15 @@ impl fmt::Display for SphinxError {
             Self::InvalidRouteInfo => write!(f, "Invalid route information"),
             Self::NoMoreRelays => write!(f, "No more relays in packet"),
             Self::InvalidEphemeralKey => write!(f, "Invalid ephemeral key"),
+            Self::OnionError(msg) => write!(f, "Onion layer error: {}", msg),
         }
     }
 }
-
-impl Error for SphinxError {}
+impl From<OnionError> for SphinxError {
+    fn from(e: OnionError) -> Self {
+        SphinxError::OnionError(e.to_string())
+    }
+}
 
 /// Relay information for one hop
 #[derive(Clone, Debug)]

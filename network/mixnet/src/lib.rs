@@ -9,7 +9,6 @@
 //!           (peel)       (peel)       (peel)
 //! ```
 
-#![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod sphinx;
 pub mod onion;
@@ -78,6 +77,12 @@ impl std::fmt::Display for MixnetError {
     }
 }
 
+impl From<crate::sphinx::SphinxError> for MixnetError {
+    fn from(e: crate::sphinx::SphinxError) -> Self {
+        MixnetError::CryptoError(e.to_string())
+    }
+}
+
 impl std::error::Error for MixnetError {}
 
 /// Convert message to anonymized Sphinx packet
@@ -91,7 +96,7 @@ pub fn create_message_packet(
     let path = topology.get_path_to(recipient_id, config.num_hops)?;
 
     // Create Sphinx packet through relay chain
-    SphinxPacket::create(message, &path, config.packet_size)
+    SphinxPacket::create(message, &path, config.packet_size).map_err(Into::into)
 }
 
 /// Process incoming packet at relay node

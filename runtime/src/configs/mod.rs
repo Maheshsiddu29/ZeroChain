@@ -147,9 +147,10 @@ impl pallet_zk_staking::Config for Runtime {
 }
 
 impl pallet_bls_consensus::Config for Runtime {
-    type MaxSigners = frame_support::traits::ConstU32<10>;
-    type MaxSignatureSize = frame_support::traits::ConstU32<256>;
-    type MaxKeySize = frame_support::traits::ConstU32<256>;
+    type RuntimeEvent = RuntimeEvent;
+    type SignatureThreshold = frame_support::traits::ConstU16<7>;
+    type ValidatorCount = frame_support::traits::ConstU16<10>;
+    type MaxPartialSignatures = frame_support::traits::ConstU32<10>;
 }
 
 impl pallet_zk_bridge::Config for Runtime {

@@ -5,10 +5,14 @@
 mod types;
 pub use types::*;
 
+#[cfg(feature = "std")]
 mod dkg;
+#[cfg(feature = "std")]
 pub use dkg::{DkgCoordinator, DkgParticipant};
 
+#[cfg(feature = "std")]
 mod aggregation;
+#[cfg(feature = "std")]
 pub use aggregation::{BlsAggregator, AggregationError};
 
 #[cfg(test)]
@@ -267,13 +271,10 @@ pub mod pallet {
 
     impl<T: Config> Pallet<T> {
         fn simulate_dkg() -> BlsPublicKey {
+            let epoch_bytes = CurrentEpoch::<T>::get().to_le_bytes();
             let mut apk = [0u8; 48];
-            use sha2::{Sha256, Digest};
-            let mut hasher = Sha256::new();
-            hasher.update(format!("dkg_{}", CurrentEpoch::<T>::get()).as_bytes());
-            let hash = hasher.finalize();
             for i in 0..48 {
-                apk[i] = hash[i % 32];
+                apk[i] = epoch_bytes[i % 8].wrapping_add(i as u8);
             }
             BlsPublicKey::new(apk)
         }
