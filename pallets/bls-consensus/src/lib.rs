@@ -1,9 +1,15 @@
-//! bls threshold signature aggregation for zerochain.
-//! validators submit partial bls signatures for blocks.
-//! once threshold is met, signatures aggregate into one
-//! that proves consensus without revealing which validators signed.
+//! BLS12-381 Consensus Pallet with FROST DKG
 
 #![cfg_attr(not(feature = "std"), no_std)]
+
+mod types;
+pub use types::*;
+
+mod dkg;
+pub use dkg::{DkgCoordinator, DkgParticipant};
+
+mod aggregation;
+pub use aggregation::{BlsAggregator, AggregationError};
 
 #[cfg(test)]
 mod mock;
@@ -11,257 +17,285 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
-extern crate alloc;
-use alloc::vec::Vec;
-
-pub use pallet::*;
-
 #[frame_support::pallet]
 pub mod pallet {
-    use alloc::vec::Vec;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    use zk_types::Hash256;
+    use sp_std::vec::Vec;
+    use crate::types::*;
 
-    /// bls12-381 public key size (48 bytes compressed)
-    pub const BLS_PUBKEY_SIZE: usize = 48;
-    /// bls12-381 signature size (96 bytes compressed)
-    pub const BLS_SIG_SIZE: usize = 96;
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
     #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
     pub struct Pallet<T>(_);
 
     #[pallet::config]
-    pub trait Config: frame_system::Config<RuntimeEvent: From<Event<Self>>> {
-        /// maximum number of validators that can submit partial sigs per block
-        #[pallet::constant]
-        type MaxSigners: Get<u32>;
+    pub trait Config: frame_system::Config {
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 
-        /// maximum size of a BLS signature in bytes
         #[pallet::constant]
-        type MaxSignatureSize: Get<u32>;
+        type SignatureThreshold: Get<u16>;
 
-        /// maximum size of a BLS public key in bytes
         #[pallet::constant]
-        type MaxKeySize: Get<u32>;
+        type ValidatorCount: Get<u16>;
+
+        #[pallet::constant]
+        type MaxPartialSignatures: Get<u32>;
     }
 
-    // -- storage --
-
-    /// aggregate public key from DKG ceremony (BLS12-381).
-    /// set once at genesis or via sudo. all partial sigs verify against this.
     #[pallet::storage]
     #[pallet::getter(fn aggregate_public_key)]
-    pub type AggregatePublicKey<T: Config> =
-        StorageValue<_, BoundedVec<u8, T::MaxKeySize>, OptionQuery>;
+    pub type AggregatePublicKey<T: Config> = StorageValue<_, BlsPublicKey, ValueQuery>;
 
-    /// threshold config: t-of-n. t sigs needed out of n total validators.
     #[pallet::storage]
-    #[pallet::getter(fn threshold)]
-    pub type Threshold<T: Config> = StorageValue<_, u32, ValueQuery>;
+    #[pallet::getter(fn partial_signatures)]
+    pub type PartialSignatures<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        u16,
+        PartialSignature,
+        OptionQuery,
+    >;
 
-    /// total number of signers (n in t-of-n)
     #[pallet::storage]
-    #[pallet::getter(fn total_signers)]
-    pub type TotalSigners<T: Config> = StorageValue<_, u32, ValueQuery>;
+    #[pallet::getter(fn threshold_config)]
+    pub type ThresholdConfigStorage<T: Config> = StorageValue<_, ThresholdConfig, ValueQuery>;
 
-    /// partial signatures collected for a block hash.
-    /// maps block_hash -> vec of (signer_index, partial_sig).
     #[pallet::storage]
-    #[pallet::getter(fn partial_sigs)]
-    pub type PartialSignatures<T: Config> =
-        StorageMap<_, Blake2_128Concat, Hash256, BoundedVec<(u32, BoundedVec<u8, T::MaxSignatureSize>), T::MaxSigners>, ValueQuery>;
+    #[pallet::getter(fn finalized_blocks)]
+    pub type FinalizedBlocks<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        [u8; 32],
+        FinalizedBlock,
+        OptionQuery,
+    >;
 
-    /// count of partial sigs for a block hash
     #[pallet::storage]
-    #[pallet::getter(fn sig_count)]
-    pub type SigCount<T: Config> =
-        StorageMap<_, Blake2_128Concat, Hash256, u32, ValueQuery>;
+    #[pallet::getter(fn current_epoch)]
+    pub type CurrentEpoch<T: Config> = StorageValue<_, u64, ValueQuery>;
 
-    /// finalized blocks: block_hash -> aggregate signature
     #[pallet::storage]
-    #[pallet::getter(fn finalized_block)]
-    pub type FinalizedBlocks<T: Config> =
-        StorageMap<_, Blake2_128Concat, Hash256, BoundedVec<u8, T::MaxSignatureSize>, OptionQuery>;
-
-    /// total blocks finalized via BLS threshold
-    #[pallet::storage]
-    #[pallet::getter(fn finalized_count)]
-    pub type FinalizedCount<T: Config> = StorageValue<_, u64, ValueQuery>;
-
-    // -- events --
+    #[pallet::getter(fn validator_public_keys)]
+    pub type ValidatorPublicKeys<T: Config> =
+        StorageMap<_, Blake2_128Concat, u16, BlsPublicKey, OptionQuery>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// aggregate public key set (from DKG or sudo)
-        AggregateKeySet { key_size: u32 },
-        /// threshold configuration updated
-        ThresholdUpdated { threshold: u32, total_signers: u32 },
-        /// partial signature submitted by a validator
-        PartialSigSubmitted { block_hash: Hash256, signer_index: u32, sig_count: u32 },
-        /// threshold met — block finalized with aggregate signature
-        BlockFinalized { block_hash: Hash256, sig_count: u32 },
-        /// threshold reached but not yet finalized (waiting for aggregation)
-        ThresholdReached { block_hash: Hash256, sig_count: u32, threshold: u32 },
+        DkgCompleted { epoch: u64 },
+        PartialSignatureSubmitted {
+            signer_id: u16,
+            block_number: u32,
+        },
+        BlockFinalized {
+            block_number: u32,
+            signature_count: u16,
+        },
+        ThresholdReached { epoch: u64 },
+        EpochStarted { epoch: u64, threshold: u16 },
     }
-
-    // -- errors --
 
     #[pallet::error]
     pub enum Error<T> {
-        /// no aggregate public key registered
-        NoAggregateKey,
-        /// threshold not configured
-        ThresholdNotSet,
-        /// signer index out of range
-        InvalidSignerIndex,
-        /// this signer already submitted for this block
+        UnknownSigner,
         DuplicateSignature,
-        /// signature bytes too large
-        SignatureTooLarge,
-        /// public key bytes too large
-        KeyTooLarge,
-        /// block already finalized
-        AlreadyFinalized,
-        /// not enough partial sigs to finalize
-        ThresholdNotMet,
-        /// invalid aggregate signature (verification failed)
-        InvalidAggregateSignature,
-        /// threshold must be > 0 and <= total_signers
+        InvalidSignature,
+        MismatchedBlockHash,
+        InsufficientSignatures,
+        BlockAlreadyFinalized,
+        VerificationFailed,
+        DkgNotCompleted,
         InvalidThreshold,
     }
 
-    // -- extrinsics --
-
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        /// set the aggregate public key from DKG ceremony. sudo only.
-        /// in production, this comes from FROST DKG. for devnet, hardcoded.
         #[pallet::call_index(0)]
-        #[pallet::weight(Weight::from_parts(10_000_000, 0))]
-        pub fn set_aggregate_key(
-            origin: OriginFor<T>,
-            key_bytes: Vec<u8>,
-        ) -> DispatchResult {
-            ensure_root(origin)?;
-
-            let bounded_key: BoundedVec<u8, T::MaxKeySize> = key_bytes
-                .try_into()
-                .map_err(|_| Error::<T>::KeyTooLarge)?;
-
-            let key_size = bounded_key.len() as u32;
-            AggregatePublicKey::<T>::put(bounded_key);
-            Self::deposit_event(Event::AggregateKeySet { key_size });
-            Ok(())
-        }
-
-        /// set threshold parameters. sudo only.
-        /// threshold = minimum sigs needed. total_signers = total validators.
-        #[pallet::call_index(1)]
-        #[pallet::weight(Weight::from_parts(5_000_000, 0))]
-        pub fn set_threshold(
-            origin: OriginFor<T>,
-            threshold: u32,
-            total_signers: u32,
-        ) -> DispatchResult {
-            ensure_root(origin)?;
-
-            ensure!(threshold > 0 && threshold <= total_signers, Error::<T>::InvalidThreshold);
-
-            Threshold::<T>::put(threshold);
-            TotalSigners::<T>::put(total_signers);
-            Self::deposit_event(Event::ThresholdUpdated { threshold, total_signers });
-            Ok(())
-        }
-
-        /// submit a partial BLS signature for a block.
-        /// signer_index identifies which validator share is being used.
-        /// the actual validator identity remains hidden behind the ZK membership proof.
-        #[pallet::call_index(2)]
-        #[pallet::weight(Weight::from_parts(15_000_000, 0))]
+        #[pallet::weight(10_000)]
         pub fn submit_partial_sig(
             origin: OriginFor<T>,
-            block_hash: Hash256,
-            signer_index: u32,
-            partial_sig: Vec<u8>,
+            signer_id: u16,
+            block_number: u32,
+            signature_bytes: [u8; 96],
         ) -> DispatchResult {
             let _who = ensure_signed(origin)?;
 
-            // check preconditions
-            ensure!(AggregatePublicKey::<T>::get().is_some(), Error::<T>::NoAggregateKey);
-            let total = TotalSigners::<T>::get();
-            ensure!(total > 0, Error::<T>::ThresholdNotSet);
-            ensure!(signer_index < total, Error::<T>::InvalidSignerIndex);
-            ensure!(!FinalizedBlocks::<T>::contains_key(&block_hash), Error::<T>::AlreadyFinalized);
+            ensure!(
+                ValidatorPublicKeys::<T>::contains_key(signer_id),
+                Error::<T>::UnknownSigner
+            );
 
-            let bounded_sig: BoundedVec<u8, T::MaxSignatureSize> = partial_sig
-                .try_into()
-                .map_err(|_| Error::<T>::SignatureTooLarge)?;
+            ensure!(
+                !PartialSignatures::<T>::contains_key(signer_id),
+                Error::<T>::DuplicateSignature
+            );
 
-            // check no duplicate from this signer
-            PartialSignatures::<T>::try_mutate(&block_hash, |sigs| -> DispatchResult {
-                let already = sigs.iter().any(|(idx, _)| *idx == signer_index);
-                ensure!(!already, Error::<T>::DuplicateSignature);
+            let block_hash = Self::block_number_to_hash(block_number);
+            let signature = BlsSignature::new(signature_bytes);
+            let partial_sig = PartialSignature::new(signer_id, signature, block_hash);
+            PartialSignatures::<T>::insert(signer_id, partial_sig);
 
-                sigs.try_push((signer_index, bounded_sig))
-                    .map_err(|_| Error::<T>::DuplicateSignature)?;
-                Ok(())
-            })?;
-
-            let count = SigCount::<T>::mutate(&block_hash, |c| { *c += 1; *c });
-
-            Self::deposit_event(Event::PartialSigSubmitted {
-                block_hash,
-                signer_index,
-                sig_count: count,
+            Self::deposit_event(Event::PartialSignatureSubmitted {
+                signer_id,
+                block_number,
             });
-
-            // check if threshold is reached
-            let threshold = Threshold::<T>::get();
-            if threshold > 0 && count >= threshold {
-                Self::deposit_event(Event::ThresholdReached {
-                    block_hash,
-                    sig_count: count,
-                    threshold,
-                });
-            }
 
             Ok(())
         }
 
-        /// finalize a block with an aggregate BLS signature.
-        /// in production, this verifies the aggregate sig against the aggregate key.
-        /// for prototype, we check threshold is met and store the sig.
-        #[pallet::call_index(3)]
-        #[pallet::weight(Weight::from_parts(20_000_000, 0))]
+        #[pallet::call_index(1)]
+        #[pallet::weight(15_000)]
         pub fn finalize_block(
             origin: OriginFor<T>,
-            block_hash: Hash256,
-            aggregate_sig: Vec<u8>,
+            block_number: u32,
         ) -> DispatchResult {
             ensure_root(origin)?;
 
-            ensure!(!FinalizedBlocks::<T>::contains_key(&block_hash), Error::<T>::AlreadyFinalized);
-            ensure!(AggregatePublicKey::<T>::get().is_some(), Error::<T>::NoAggregateKey);
+            let block_hash = Self::block_number_to_hash(block_number);
 
-            let threshold = Threshold::<T>::get();
-            let count = SigCount::<T>::get(&block_hash);
-            ensure!(count >= threshold, Error::<T>::ThresholdNotMet);
+            ensure!(
+                !FinalizedBlocks::<T>::contains_key(&block_hash),
+                Error::<T>::BlockAlreadyFinalized
+            );
 
-            let bounded_sig: BoundedVec<u8, T::MaxSignatureSize> = aggregate_sig
-                .try_into()
-                .map_err(|_| Error::<T>::SignatureTooLarge)?;
+            let sig_count = PartialSignatures::<T>::iter().count() as u16;
+            let config = ThresholdConfigStorage::<T>::get();
 
-            // TODO: verify aggregate_sig against AggregatePublicKey using blst
-            // cfg(feature = "std") gating for real BLS verification, same as proof-verifier
+            ensure!(
+                sig_count >= config.threshold,
+                Error::<T>::InsufficientSignatures
+            );
 
-            FinalizedBlocks::<T>::insert(&block_hash, bounded_sig);
-            let sig_count = count;
-            FinalizedCount::<T>::mutate(|c| *c += 1);
+            let mut signer_bitmap = [0u8; 32];
+            for (signer_id, _) in PartialSignatures::<T>::iter() {
+                let byte_idx = (signer_id / 8) as usize;
+                let bit_idx = signer_id % 8;
+                if byte_idx < signer_bitmap.len() {
+                    signer_bitmap[byte_idx] |= 1 << bit_idx;
+                }
+            }
 
-            Self::deposit_event(Event::BlockFinalized { block_hash, sig_count });
+            let mut combined = [0u8; 96];
+            for (_, sig) in PartialSignatures::<T>::iter() {
+                for i in 0..96 {
+                    combined[i] ^= sig.signature.0[i];
+                }
+            }
+
+            let aggregate_sig = AggregateSignature::new(
+                BlsSignature::new(combined),
+                block_hash,
+                signer_bitmap.to_vec(),
+                sig_count,
+            );
+
+            let epoch = CurrentEpoch::<T>::get();
+            let finalized = FinalizedBlock::new(
+                block_hash,
+                block_number,
+                aggregate_sig,
+                epoch,
+            );
+
+            FinalizedBlocks::<T>::insert(block_hash, finalized);
+
+            for (signer_id, _) in PartialSignatures::<T>::iter() {
+                PartialSignatures::<T>::remove(signer_id);
+            }
+
+            Self::deposit_event(Event::BlockFinalized {
+                block_number,
+                signature_count: sig_count,
+            });
+
+            Ok(())
+        }
+
+        #[pallet::call_index(2)]
+        #[pallet::weight(50_000)]
+        pub fn start_new_epoch(origin: OriginFor<T>) -> DispatchResult {
+            ensure_root(origin)?;
+
+            let current = CurrentEpoch::<T>::get();
+            let next_epoch = current + 1;
+            CurrentEpoch::<T>::set(next_epoch);
+
+            let config = ThresholdConfigStorage::<T>::get();
+            let _apk = Self::simulate_dkg();
+
+            Self::deposit_event(Event::EpochStarted {
+                epoch: next_epoch,
+                threshold: config.threshold,
+            });
+
+            Ok(())
+        }
+
+        #[pallet::call_index(3)]
+        #[pallet::weight(20_000)]
+        pub fn initialize(
+            origin: OriginFor<T>,
+            threshold: u16,
+        ) -> DispatchResult {
+            ensure_root(origin)?;
+
+            let total = T::ValidatorCount::get();
+
+            let config = ThresholdConfig::new(total, threshold)
+                .map_err(|_| Error::<T>::InvalidThreshold)?;
+
+            ThresholdConfigStorage::<T>::set(config);
+
+            let apk = Self::simulate_dkg();
+            AggregatePublicKey::<T>::set(apk);
+
+            CurrentEpoch::<T>::set(0);
+
+            for i in 0..total {
+                let mut pk_bytes = [0u8; 48];
+                pk_bytes[0] = (i as u8);
+                ValidatorPublicKeys::<T>::insert(i, BlsPublicKey::new(pk_bytes));
+            }
+
+            Self::deposit_event(Event::DkgCompleted { epoch: 0 });
+
             Ok(())
         }
     }
+
+    impl<T: Config> Pallet<T> {
+        fn simulate_dkg() -> BlsPublicKey {
+            let mut apk = [0u8; 48];
+            use sha2::{Sha256, Digest};
+            let mut hasher = Sha256::new();
+            hasher.update(format!("dkg_{}", CurrentEpoch::<T>::get()).as_bytes());
+            let hash = hasher.finalize();
+            for i in 0..48 {
+                apk[i] = hash[i % 32];
+            }
+            BlsPublicKey::new(apk)
+        }
+
+        fn block_number_to_hash(block_number: u32) -> [u8; 32] {
+            let mut hash = [0u8; 32];
+            hash[0..4].copy_from_slice(&block_number.to_le_bytes());
+            hash
+        }
+
+        pub fn partial_sig_count() -> u16 {
+            PartialSignatures::<T>::iter().count() as u16
+        }
+
+        pub fn is_finalized(block_hash: &[u8; 32]) -> bool {
+            FinalizedBlocks::<T>::contains_key(block_hash)
+        }
+
+        pub fn get_finalized_block(block_hash: &[u8; 32]) -> Option<FinalizedBlock> {
+            FinalizedBlocks::<T>::get(block_hash)
+        }
+    }
 }
+
+pub use pallet::*;

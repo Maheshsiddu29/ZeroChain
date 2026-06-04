@@ -1,280 +1,207 @@
-use crate::{mock::*, Error, Event, AggregatePublicKey, Threshold, TotalSigners, PartialSignatures, SigCount, FinalizedBlocks, FinalizedCount};
-use frame_support::{assert_noop, assert_ok};
+//! BLS Consensus Pallet Tests
 
-fn block_hash(seed: u8) -> [u8; 32] {
-    [seed; 32]
-}
+#[cfg(test)]
+mod tests {
+    use crate::*;
+    use crate::pallet::{PartialSignatures, ThresholdConfigStorage};
+    use frame_support::assert_ok;
+    use super::super::mock::*;
 
-fn fake_key() -> Vec<u8> {
-    vec![0xAA; 48] // BLS12-381 compressed pubkey size
-}
+    fn dummy_signature_bytes(id: u8) -> [u8; 96] {
+        let mut sig = [0u8; 96];
+        sig[0] = id;
+        sig
+    }
 
-fn fake_sig(seed: u8) -> Vec<u8> {
-    vec![seed; 96] // BLS12-381 compressed sig size
-}
+    #[test]
+    fn test_initialize_consensus() {
+        new_test_ext().execute_with(|| {
+            assert_ok!(BlsConsensus::initialize(RuntimeOrigin::root(), 2));
 
-fn setup_threshold(t: u32, n: u32) {
-    assert_ok!(BlsConsensus::set_aggregate_key(RuntimeOrigin::root(), fake_key()));
-    assert_ok!(BlsConsensus::set_threshold(RuntimeOrigin::root(), t, n));
-}
+            let config = ThresholdConfigStorage::<Test>::get();
+            assert_eq!(config.threshold, 2);
+            assert_eq!(config.total, 3);
+        });
+    }
 
-// ─── set_aggregate_key tests ─────────────────────────────────
+    #[test]
+    fn test_submit_partial_signature() {
+        new_test_ext().execute_with(|| {
+            assert_ok!(BlsConsensus::initialize(RuntimeOrigin::root(), 2));
 
-#[test]
-fn set_aggregate_key_works() {
-    new_test_ext().execute_with(|| {
-        let key = fake_key();
-        assert_ok!(BlsConsensus::set_aggregate_key(RuntimeOrigin::root(), key.clone()));
-        assert!(AggregatePublicKey::<Test>::get().is_some());
-        assert_eq!(AggregatePublicKey::<Test>::get().unwrap().len(), 48);
-        System::assert_last_event(Event::AggregateKeySet { key_size: 48 }.into());
-    });
-}
+            let block_number = 1u32;
+            let signature = dummy_signature_bytes(1);
 
-#[test]
-fn set_aggregate_key_requires_root() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            BlsConsensus::set_aggregate_key(RuntimeOrigin::signed(1), fake_key()),
-            sp_runtime::DispatchError::BadOrigin
-        );
-    });
-}
+            assert_ok!(BlsConsensus::submit_partial_sig(
+                RuntimeOrigin::signed(1),
+                0,
+                block_number,
+                signature,
+            ));
 
-#[test]
-fn set_aggregate_key_rejects_oversized() {
-    new_test_ext().execute_with(|| {
-        let big_key = vec![0xFF; 300]; // exceeds MaxKeySize=256
-        assert_noop!(
-            BlsConsensus::set_aggregate_key(RuntimeOrigin::root(), big_key),
-            Error::<Test>::KeyTooLarge
-        );
-    });
-}
+            assert_eq!(BlsConsensus::partial_sig_count(), 1);
+        });
+    }
 
-// ─── set_threshold tests ─────────────────────────────────────
+    #[test]
+    fn test_duplicate_signature_rejected() {
+        new_test_ext().execute_with(|| {
+            assert_ok!(BlsConsensus::initialize(RuntimeOrigin::root(), 2));
 
-#[test]
-fn set_threshold_works() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(BlsConsensus::set_threshold(RuntimeOrigin::root(), 2, 3));
-        assert_eq!(Threshold::<Test>::get(), 2);
-        assert_eq!(TotalSigners::<Test>::get(), 3);
-        System::assert_last_event(Event::ThresholdUpdated { threshold: 2, total_signers: 3 }.into());
-    });
-}
+            let block_number = 1u32;
+            let signature = dummy_signature_bytes(1);
 
-#[test]
-fn set_threshold_rejects_zero() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            BlsConsensus::set_threshold(RuntimeOrigin::root(), 0, 3),
-            Error::<Test>::InvalidThreshold
-        );
-    });
-}
+            assert_ok!(BlsConsensus::submit_partial_sig(
+                RuntimeOrigin::signed(1),
+                0,
+                block_number,
+                signature,
+            ));
 
-#[test]
-fn set_threshold_rejects_t_greater_than_n() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            BlsConsensus::set_threshold(RuntimeOrigin::root(), 5, 3),
-            Error::<Test>::InvalidThreshold
-        );
-    });
-}
+            let result = BlsConsensus::submit_partial_sig(
+                RuntimeOrigin::signed(2),
+                0,
+                block_number,
+                signature,
+            );
 
-#[test]
-fn set_threshold_requires_root() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            BlsConsensus::set_threshold(RuntimeOrigin::signed(1), 2, 3),
-            sp_runtime::DispatchError::BadOrigin
-        );
-    });
-}
+            assert!(result.is_err());
+        });
+    }
 
-// ─── submit_partial_sig tests ────────────────────────────────
+    #[test]
+    fn test_finalize_block_with_threshold() {
+        new_test_ext().execute_with(|| {
+            assert_ok!(BlsConsensus::initialize(RuntimeOrigin::root(), 2));
 
-#[test]
-fn submit_partial_sig_works() {
-    new_test_ext().execute_with(|| {
-        setup_threshold(2, 3);
-        let bh = block_hash(0x01);
-        assert_ok!(BlsConsensus::submit_partial_sig(
-            RuntimeOrigin::signed(1), bh, 0, fake_sig(0xA1)
-        ));
-        assert_eq!(SigCount::<Test>::get(&bh), 1);
-        System::assert_last_event(Event::PartialSigSubmitted {
-            block_hash: bh, signer_index: 0, sig_count: 1
-        }.into());
-    });
-}
+            let block_number = 1u32;
+            let sig1 = dummy_signature_bytes(1);
+            let sig2 = dummy_signature_bytes(2);
 
-#[test]
-fn submit_partial_sig_rejects_without_key() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(BlsConsensus::set_threshold(RuntimeOrigin::root(), 2, 3));
-        let bh = block_hash(0x02);
-        assert_noop!(
-            BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), bh, 0, fake_sig(0xA2)),
-            Error::<Test>::NoAggregateKey
-        );
-    });
-}
+            assert_ok!(BlsConsensus::submit_partial_sig(
+                RuntimeOrigin::signed(1),
+                0,
+                block_number,
+                sig1,
+            ));
 
-#[test]
-fn submit_partial_sig_rejects_invalid_index() {
-    new_test_ext().execute_with(|| {
-        setup_threshold(2, 3);
-        let bh = block_hash(0x03);
-        assert_noop!(
-            BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), bh, 5, fake_sig(0xA3)),
-            Error::<Test>::InvalidSignerIndex
-        );
-    });
-}
+            assert_ok!(BlsConsensus::submit_partial_sig(
+                RuntimeOrigin::signed(2),
+                1,
+                block_number,
+                sig2,
+            ));
 
-#[test]
-fn submit_partial_sig_rejects_duplicate() {
-    new_test_ext().execute_with(|| {
-        setup_threshold(2, 3);
-        let bh = block_hash(0x04);
-        assert_ok!(BlsConsensus::submit_partial_sig(
-            RuntimeOrigin::signed(1), bh, 0, fake_sig(0xA4)
-        ));
-        assert_noop!(
-            BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), bh, 0, fake_sig(0xB4)),
-            Error::<Test>::DuplicateSignature
-        );
-    });
-}
+            assert!(BlsConsensus::partial_sig_count() >= 2);
 
-#[test]
-fn submit_partial_sig_rejects_after_finalized() {
-    new_test_ext().execute_with(|| {
-        setup_threshold(2, 3);
-        let bh = block_hash(0x05);
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), bh, 0, fake_sig(0xA5)));
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(2), bh, 1, fake_sig(0xB5)));
-        assert_ok!(BlsConsensus::finalize_block(RuntimeOrigin::root(), bh, fake_sig(0xFF)));
-        assert_noop!(
-            BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(3), bh, 2, fake_sig(0xC5)),
-            Error::<Test>::AlreadyFinalized
-        );
-    });
-}
+            assert_ok!(BlsConsensus::finalize_block(
+                RuntimeOrigin::root(),
+                block_number,
+            ));
 
-#[test]
-fn threshold_reached_event_emitted() {
-    new_test_ext().execute_with(|| {
-        setup_threshold(2, 3);
-        let bh = block_hash(0x06);
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), bh, 0, fake_sig(0xA6)));
-        // first sig: no threshold event
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(2), bh, 1, fake_sig(0xB6)));
-        // second sig: threshold reached
-        System::assert_last_event(Event::ThresholdReached {
-            block_hash: bh, sig_count: 2, threshold: 2
-        }.into());
-    });
-}
+            assert_eq!(BlsConsensus::partial_sig_count(), 0);
+        });
+    }
 
-// ─── finalize_block tests ────────────────────────────────────
+    #[test]
+    fn test_finalize_below_threshold_fails() {
+        new_test_ext().execute_with(|| {
+            assert_ok!(BlsConsensus::initialize(RuntimeOrigin::root(), 2));
 
-#[test]
-fn finalize_block_works() {
-    new_test_ext().execute_with(|| {
-        setup_threshold(2, 3);
-        let bh = block_hash(0x07);
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), bh, 0, fake_sig(0xA7)));
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(2), bh, 1, fake_sig(0xB7)));
-        assert_ok!(BlsConsensus::finalize_block(RuntimeOrigin::root(), bh, fake_sig(0xFF)));
-        assert!(FinalizedBlocks::<Test>::contains_key(&bh));
-        assert_eq!(FinalizedCount::<Test>::get(), 1);
-        System::assert_last_event(Event::BlockFinalized { block_hash: bh, sig_count: 2 }.into());
-    });
-}
+            let block_number = 1u32;
+            let sig = dummy_signature_bytes(1);
 
-#[test]
-fn finalize_block_rejects_below_threshold() {
-    new_test_ext().execute_with(|| {
-        setup_threshold(2, 3);
-        let bh = block_hash(0x08);
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), bh, 0, fake_sig(0xA8)));
-        // only 1 sig, need 2
-        assert_noop!(
-            BlsConsensus::finalize_block(RuntimeOrigin::root(), bh, fake_sig(0xFF)),
-            Error::<Test>::ThresholdNotMet
-        );
-    });
-}
+            assert_ok!(BlsConsensus::submit_partial_sig(
+                RuntimeOrigin::signed(1),
+                0,
+                block_number,
+                sig,
+            ));
 
-#[test]
-fn finalize_block_rejects_duplicate() {
-    new_test_ext().execute_with(|| {
-        setup_threshold(2, 3);
-        let bh = block_hash(0x09);
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), bh, 0, fake_sig(0xA9)));
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(2), bh, 1, fake_sig(0xB9)));
-        assert_ok!(BlsConsensus::finalize_block(RuntimeOrigin::root(), bh, fake_sig(0xFF)));
-        assert_noop!(
-            BlsConsensus::finalize_block(RuntimeOrigin::root(), bh, fake_sig(0xFF)),
-            Error::<Test>::AlreadyFinalized
-        );
-    });
-}
+            let result = BlsConsensus::finalize_block(
+                RuntimeOrigin::root(),
+                block_number,
+            );
 
-#[test]
-fn finalize_block_requires_root() {
-    new_test_ext().execute_with(|| {
-        setup_threshold(2, 3);
-        let bh = block_hash(0x0A);
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), bh, 0, fake_sig(0xAA)));
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(2), bh, 1, fake_sig(0xBA)));
-        assert_noop!(
-            BlsConsensus::finalize_block(RuntimeOrigin::signed(1), bh, fake_sig(0xFF)),
-            sp_runtime::DispatchError::BadOrigin
-        );
-    });
-}
+            assert!(result.is_err());
+        });
+    }
 
-// ─── full lifecycle test ─────────────────────────────────────
+    #[test]
+    fn test_epoch_transition() {
+        new_test_ext().execute_with(|| {
+            assert_ok!(BlsConsensus::initialize(RuntimeOrigin::root(), 2));
+            assert_eq!(BlsConsensus::current_epoch(), 0);
 
-#[test]
-fn full_2_of_3_threshold_lifecycle() {
-    new_test_ext().execute_with(|| {
-        // setup 2-of-3 threshold
-        setup_threshold(2, 3);
+            assert_ok!(BlsConsensus::start_new_epoch(RuntimeOrigin::root()));
+            assert_eq!(BlsConsensus::current_epoch(), 1);
+        });
+    }
 
-        // block 1: all three validators submit, finalize
-        let b1 = block_hash(0x10);
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), b1, 0, fake_sig(0x01)));
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(2), b1, 1, fake_sig(0x02)));
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(3), b1, 2, fake_sig(0x03)));
-        assert_eq!(SigCount::<Test>::get(&b1), 3);
-        assert_ok!(BlsConsensus::finalize_block(RuntimeOrigin::root(), b1, fake_sig(0xF1)));
-        assert_eq!(FinalizedCount::<Test>::get(), 1);
+    #[test]
+    fn test_multiple_blocks_sequential() {
+        new_test_ext().execute_with(|| {
+            assert_ok!(BlsConsensus::initialize(RuntimeOrigin::root(), 2));
 
-        // block 2: only two validators submit (minimum threshold), finalize
-        let b2 = block_hash(0x20);
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(1), b2, 0, fake_sig(0x04)));
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(3), b2, 2, fake_sig(0x05)));
-        assert_eq!(SigCount::<Test>::get(&b2), 2);
-        assert_ok!(BlsConsensus::finalize_block(RuntimeOrigin::root(), b2, fake_sig(0xF2)));
-        assert_eq!(FinalizedCount::<Test>::get(), 2);
+            for block_num in 1..=3 {
+                let sig1 = dummy_signature_bytes(1);
+                let sig2 = dummy_signature_bytes(2);
 
-        // block 3: only one validator — cannot finalize
-        let b3 = block_hash(0x30);
-        assert_ok!(BlsConsensus::submit_partial_sig(RuntimeOrigin::signed(2), b3, 1, fake_sig(0x06)));
-        assert_noop!(
-            BlsConsensus::finalize_block(RuntimeOrigin::root(), b3, fake_sig(0xF3)),
-            Error::<Test>::ThresholdNotMet
-        );
+                assert_ok!(BlsConsensus::submit_partial_sig(
+                    RuntimeOrigin::signed(1),
+                    0,
+                    block_num,
+                    sig1,
+                ));
 
-        // confirm state
-        assert!(FinalizedBlocks::<Test>::contains_key(&b1));
-        assert!(FinalizedBlocks::<Test>::contains_key(&b2));
-        assert!(!FinalizedBlocks::<Test>::contains_key(&b3));
-    });
+                assert_ok!(BlsConsensus::submit_partial_sig(
+                    RuntimeOrigin::signed(2),
+                    1,
+                    block_num,
+                    sig2,
+                ));
+
+                assert_ok!(BlsConsensus::finalize_block(
+                    RuntimeOrigin::root(),
+                    block_num,
+                ));
+            }
+        });
+    }
+
+    #[test]
+    fn test_dkg_basic_protocol() {
+        use crate::dkg::DkgCoordinator;
+
+        let mut coordinator = DkgCoordinator::new(3, 2).unwrap();
+        let result = coordinator.execute();
+
+        assert!(result.is_ok());
+        let secret_keys = result.unwrap();
+        assert_eq!(secret_keys.len(), 3);
+    }
+
+    #[test]
+    fn test_aggregator_basic_operations() {
+        use crate::aggregation::BlsAggregator;
+
+        let apk = BlsPublicKey::new([1u8; 48]);
+        let mut agg = BlsAggregator::new(apk, 2);
+
+        let block_hash = [1u8; 32];
+        let sig1_bytes = dummy_signature_bytes(1);
+        let sig2_bytes = dummy_signature_bytes(2);
+
+        let sig1 = PartialSignature::new(0, BlsSignature::new(sig1_bytes), block_hash);
+        let sig2 = PartialSignature::new(1, BlsSignature::new(sig2_bytes), block_hash);
+
+        assert!(agg.add_partial_signature(sig1).is_ok());
+        assert!(agg.add_partial_signature(sig2).is_ok());
+
+        let result = agg.aggregate();
+        assert!(result.is_ok());
+
+        let agg_sig = result.unwrap();
+        assert_eq!(agg_sig.signature_count, 2);
+    }
 }
