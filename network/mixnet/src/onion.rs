@@ -1,6 +1,7 @@
 //! Onion Encryption Layer
-//!
-//! Each relay peels one layer via ChaCha20-Poly1305 with HKDF key derivation
+
+use alloc::vec::Vec;
+use core::fmt;
 
 use chacha20poly1305::{
     aead::{Aead, KeyInit, Nonce},
@@ -8,13 +9,12 @@ use chacha20poly1305::{
 };
 use hkdf::Hkdf;
 use sha2::Sha256;
-use std::fmt;
 
 /// Onion encryption error
 #[derive(Clone, Debug)]
 pub enum OnionError {
-    EncryptionFailed(String),
-    DecryptionFailed(String),
+    EncryptionFailed(alloc::string::String),
+    DecryptionFailed(alloc::string::String),
     InvalidKeySize,
     InvalidNonce,
 }
@@ -30,81 +30,69 @@ impl fmt::Display for OnionError {
     }
 }
 
-impl std::error::Error for OnionError {}
-
 /// Onion encryption for Mixnet
 pub struct OnionEncryption {
     shared_secret: [u8; 32],
 }
 
 impl OnionEncryption {
-    /// Create new onion encryptor with shared secret
     pub fn new(shared_secret: &[u8; 32]) -> Self {
         Self {
             shared_secret: *shared_secret,
         }
     }
 
-    /// Derive encryption key from shared secret via HKDF
     fn derive_key(&self) -> Result<[u8; 32], OnionError> {
         let hkdf = Hkdf::<Sha256>::new(None, &self.shared_secret);
-
         let mut key = [0u8; 32];
         hkdf.expand(b"onion-encryption-key", &mut key)
             .map_err(|_| OnionError::InvalidKeySize)?;
-
         Ok(key)
     }
 
-    /// Derive nonce from shared secret
     fn derive_nonce(&self) -> Result<[u8; 12], OnionError> {
         let hkdf = Hkdf::<Sha256>::new(None, &self.shared_secret);
-
         let mut nonce_bytes = [0u8; 12];
         hkdf.expand(b"onion-encryption-nonce", &mut nonce_bytes)
             .map_err(|_| OnionError::InvalidNonce)?;
-
         Ok(nonce_bytes)
     }
 
-    /// Encrypt data with ChaCha20-Poly1305
-    pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, OnionError> {
-        let key = self.derive_key()?;
-        let nonce_bytes = self.derive_nonce()?;
+ pub fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, OnionError> {
+    let key = self.derive_key()?;
+    let nonce_bytes = self.derive_nonce()?;
 
-        let cipher = ChaCha20Poly1305::new_from_slice(&key)
-            .map_err(|e| OnionError::EncryptionFailed(e.to_string()))?;
+    let cipher = ChaCha20Poly1305::new_from_slice(&key)
+        .map_err(|e| OnionError::EncryptionFailed(alloc::format!("{:?}", e)))?;
 
-        let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce: chacha20poly1305::Nonce = *chacha20poly1305::Nonce::from_slice(&nonce_bytes);
 
-        cipher
-            .encrypt(nonce, plaintext)
-            .map_err(|e| OnionError::EncryptionFailed(e.to_string()))
-    }
+    cipher
+        .encrypt(&nonce, plaintext)
+        .map_err(|e| OnionError::EncryptionFailed(alloc::format!("{:?}", e)))
+}
 
-    /// Decrypt data with ChaCha20-Poly1305
-    pub fn decrypt(&self, ciphertext: &[u8]) -> Result<Vec<u8>, OnionError> {
-        let key = self.derive_key()?;
-        let nonce_bytes = self.derive_nonce()?;
+pub fn decrypt(&self, ciphertext: &[u8]) -> Result<Vec<u8>, OnionError> {
+    let key = self.derive_key()?;
+    let nonce_bytes = self.derive_nonce()?;
 
-        let cipher = ChaCha20Poly1305::new_from_slice(&key)
-            .map_err(|e| OnionError::DecryptionFailed(e.to_string()))?;
+    let cipher = ChaCha20Poly1305::new_from_slice(&key)
+        .map_err(|e| OnionError::DecryptionFailed(alloc::format!("{:?}", e)))?;
 
-        let nonce = Nonce::from_slice(&nonce_bytes);
+    let nonce: chacha20poly1305::Nonce = *chacha20poly1305::Nonce::from_slice(&nonce_bytes);
 
-        cipher
-            .decrypt(nonce, ciphertext)
-            .map_err(|e| OnionError::DecryptionFailed(e.to_string()))
-    }
+    cipher
+        .decrypt(&nonce, ciphertext)
+        .map_err(|e| OnionError::DecryptionFailed(alloc::format!("{:?}", e)))
+}
+    
 
-    /// Encrypt data in multiple layers (for creating packets)
     pub fn encrypt_layers(
         plaintext: &[u8],
         shared_secrets: &[[u8; 32]],
     ) -> Result<Vec<u8>, OnionError> {
         let mut data = plaintext.to_vec();
 
-        // Encrypt in reverse order (outermost layer last)
         for secret in shared_secrets.iter().rev() {
             let encryptor = Self::new(secret);
             data = encryptor.encrypt(&data)?;
@@ -113,7 +101,6 @@ impl OnionEncryption {
         Ok(data)
     }
 
-    /// Decrypt data by peeling one layer
     pub fn decrypt_and_peel(&self, ciphertext: &[u8]) -> Result<Vec<u8>, OnionError> {
         self.decrypt(ciphertext)
     }
@@ -159,7 +146,6 @@ mod tests {
 
         let encrypted = OnionEncryption::encrypt_layers(plaintext, &secrets).unwrap();
 
-        // Peel layers in order
         let mut data = encrypted;
         for secret in &secrets {
             let decryptor = OnionEncryption::new(secret);

@@ -33,9 +33,9 @@ log = "0.4"
 env_logger = "0.11"
 
 # Circuit crates
-circuits-transfer = { path = "../circuits/transfer" }
-circuits-membership = { path = "../circuits/membership" }
-circuits-origin = { path = "../circuits/origin" }
+transfer-circuit = { path = "../circuits/transfer" }
+membership-circuit = { path = "../circuits/membership" }
+origin-circuit = { path = "../circuits/origin" }
 slashing-circuit = { path = "../circuits/slashing" }
 
 [dev-dependencies]
