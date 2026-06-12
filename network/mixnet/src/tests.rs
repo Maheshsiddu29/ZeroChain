@@ -172,7 +172,7 @@ mod integration_tests {
         let mut relay = RelayNode::new("relay1".to_string(), [1u8; 32]);
 
         for msg in &messages {
-            let packet = SphinxPacket::create(msg, &path, 512).unwrap();
+            let packet = SphinxPacket::create(*msg, &path, 512).unwrap();
             relay.receive_packet(packet).ok();
         }
 

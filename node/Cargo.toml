@@ -86,3 +86,6 @@ try-runtime = [
 	"solochain-template-runtime/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+
+[dev-dependencies]
+hex = { workspace = true }

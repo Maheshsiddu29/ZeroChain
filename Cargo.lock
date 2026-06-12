@@ -11542,6 +11542,7 @@ dependencies = [
  "frame-metadata-hash-extension",
  "frame-system",
  "futures",
+ "hex",
  "jsonrpsee 0.24.10",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc",
