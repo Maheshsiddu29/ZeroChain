@@ -1,7 +1,9 @@
 //! Slashing Circuit for ZK-ORIGIN
-//! 
+//!
 //! Proves: "I (validator with commitment C) signed two conflicting blocks B1 and B2"
-//! 
+//!
+//! **EXPERIMENTAL — not security-audited, disabled in production builds.**
+
 //! Public inputs:
 //! - validator_root: Merkle root of validator credentials
 //! - nullifier: Unique identifier (prevents double-slashing)

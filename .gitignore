@@ -20,6 +20,9 @@ scripts/keys/*.pk
 scripts/keys/*.vk
 scripts/proof_archive/**/transfer.pk
 scripts/proof_archive/**/transfer.vk
+# Proving key (~35 MB): distribute as release artifact, not committed.
+# VK (node/res/transfer_circuit.vk) IS committed — it is embedded in genesis.
+node/res/transfer_circuit.pk
 
 # ========================
 # Proofs & Artifacts
@@ -55,3 +58,19 @@ Thumbs.db
 .vscode/
 .idea/node_modules/
 node_modules/
+# wallet keyfiles and note stores (contain secrets)
+*.key
+alice.json
+bob.json
+carol.json
+notes.json
+_stale_keys/
+*.bak
+.Rhistory
+pdf.pdf
+node/res/transfer_circuit.pk
+
+#unwanted files
+*.md
+claude.md
+node/res/transfer_circuit.pk

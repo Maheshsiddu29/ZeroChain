@@ -3,8 +3,10 @@
 //! Provides anonymous message routing via Sphinx packets and onion encryption.
 //! Each relay peels one encryption layer and forwards to next relay.
 //!
+//! **EXPERIMENTAL — not security-audited, disabled in production builds.**
+//!
 //! Architecture:
-//! ```
+//! ```text
 //! Sender → [Relay 1] → [Relay 2] → [Relay 3] → Recipient
 //!           (peel)       (peel)       (peel)
 //! ```

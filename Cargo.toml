@@ -19,8 +19,7 @@ members = [
     "network/dandelion",
     "network/mixnet",
     "zc-host-functions",
-
-
+    "zc-groth16-io",
 ]
 resolver = "2"
 
@@ -49,6 +48,7 @@ sc-consensus = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "
 sc-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 sc-consensus-grandpa = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 sc-executor = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
+sc-executor-common = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 sc-network = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 sc-offchain = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
 sc-service = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4" }
@@ -68,6 +68,7 @@ sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8
 sp-genesis-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
+sp-runtime-interface = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-keyring = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-offchain = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }

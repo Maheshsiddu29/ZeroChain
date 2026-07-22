@@ -154,16 +154,9 @@ impl Topology {
 
     /// Validate topology consistency
     pub fn validate(&self) -> Result<(), MixnetError> {
-        // Check all relays have next hops configured
+        // Check all configured next hops point to existing relays.
+        // Terminal relays (no outgoing hops) are valid — they are exit/sink nodes.
         for (id, relay) in &self.relays {
-            if relay.next_hops.is_empty() && self.relays.len() > 1 {
-                return Err(MixnetError::InvalidTopology(format!(
-                    "Relay {} has no next hops",
-                    id
-                )));
-            }
-
-            // Check all next hops exist
             for next_id in &relay.next_hops {
                 if !self.relays.contains_key(next_id) {
                     return Err(MixnetError::InvalidTopology(format!(
@@ -202,12 +195,14 @@ impl Topology {
 /// Builder for easy topology configuration
 pub struct TopologyBuilder {
     topology: Topology,
+    errors: Vec<MixnetError>,
 }
 
 impl TopologyBuilder {
     pub fn new() -> Self {
         Self {
             topology: Topology::new(),
+            errors: Vec::new(),
         }
     }
 
@@ -218,7 +213,9 @@ impl TopologyBuilder {
     }
 
     pub fn add_validator(mut self, validator_id: &str, relay_id: &str) -> Self {
-        let _ = self.topology.register_validator(validator_id, relay_id);
+        if let Err(e) = self.topology.register_validator(validator_id, relay_id) {
+            self.errors.push(e);
+        }
         self
     }
 
@@ -228,6 +225,9 @@ impl TopologyBuilder {
     }
 
     pub fn build(self) -> Result<Topology, MixnetError> {
+        if let Some(first_error) = self.errors.into_iter().next() {
+            return Err(first_error);
+        }
         self.topology.validate()?;
         Ok(self.topology)
     }

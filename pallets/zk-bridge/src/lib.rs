@@ -2,6 +2,9 @@
 //! verifies that bridge messages genuinely originated from
 //! the claimed source chain using cryptographic origin proofs.
 //! no trusted bridge operators required.
+//!
+//! **EXPERIMENTAL — not security-audited, disabled in production builds.**
+//! Enable with `--features experimental` for research and testing only.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -149,7 +152,7 @@ pub mod pallet {
             );
 
             OriginRoots::<T>::insert(chain_id, initial_state_root);
-            ChainCount::<T>::mutate(|c| *c += 1);
+            ChainCount::<T>::mutate(|c| *c = c.saturating_add(1));
 
             Self::deposit_event(Event::SourceChainRegistered {
                 chain_id,
@@ -247,7 +250,7 @@ pub mod pallet {
             let block_number = <frame_system::Pallet<T>>::block_number();
             ProcessedMessages::<T>::insert(&message.message_hash, block_number);
             ProcessedNonces::<T>::insert(message.source_chain_id, message.nonce);
-            MessageCount::<T>::mutate(|c| *c += 1);
+            MessageCount::<T>::mutate(|c| *c = c.saturating_add(1));
 
             Self::deposit_event(Event::MessageProcessed {
                 source_chain_id: message.source_chain_id,
@@ -273,7 +276,7 @@ pub mod pallet {
             let block_number = <frame_system::Pallet<T>>::block_number();
             ProcessedMessages::<T>::insert(&message.message_hash, block_number);
             ProcessedNonces::<T>::insert(message.source_chain_id, message.nonce);
-            MessageCount::<T>::mutate(|c| *c += 1);
+            MessageCount::<T>::mutate(|c| *c = c.saturating_add(1));
 
             Self::deposit_event(Event::MessageProcessed {
                 source_chain_id: message.source_chain_id,

@@ -2,6 +2,8 @@
 //! Network-agnostic: stem phase, fluff phase, safety timeout
 //!
 //! No dependencies on sc-network or substrate - fully testable in isolation
+//!
+//! **EXPERIMENTAL — not security-audited, disabled in production builds.**
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

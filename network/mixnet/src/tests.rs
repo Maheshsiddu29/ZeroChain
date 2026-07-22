@@ -6,14 +6,29 @@ mod integration_tests {
         onion::OnionEncryption, relay::RelayNode, sphinx::{RelayHop, SphinxPacket},
         topology::TopologyBuilder, MixnetConfig,
     };
+    use x25519_dalek::{StaticSecret, PublicKey};
+
+    /// Derive the X25519 public key from a raw secret-key byte array.
+    ///
+    /// The relay's public key stored in `RelayHop` must correspond to its
+    /// secret key so that ECDH during packet creation and during `peel_layer`
+    /// produce the same shared secret.  Using the secret bytes directly as a
+    /// public key does NOT satisfy this property.
+    fn pubkey_from_secret(secret: [u8; 32]) -> [u8; 32] {
+        *PublicKey::from(&StaticSecret::from(secret)).as_bytes()
+    }
 
     #[test]
     fn test_full_mixnet_flow() {
-        // Setup: 3-relay network
-        let topology = TopologyBuilder::new()
-            .add_relay("relay1", [1u8; 32], "http://relay1:9944")
-            .add_relay("relay2", [2u8; 32], "http://relay2:9944")
-            .add_relay("relay3", [3u8; 32], "http://relay3:9944")
+        let sk1 = [1u8; 32];
+        let sk2 = [2u8; 32];
+        let sk3 = [3u8; 32];
+
+        // Verify topology builds and validates correctly.
+        let _ = TopologyBuilder::new()
+            .add_relay("relay1", pubkey_from_secret(sk1), "http://relay1:9944")
+            .add_relay("relay2", pubkey_from_secret(sk2), "http://relay2:9944")
+            .add_relay("relay3", pubkey_from_secret(sk3), "http://relay3:9944")
             .add_validator("alice", "relay1")
             .add_validator("bob", "relay2")
             .add_validator("charlie", "relay3")
@@ -22,38 +37,35 @@ mod integration_tests {
             .build()
             .unwrap();
 
-        // Create message from Alice to Charlie
-        let message = b"Secret consensus vote";
-        let path = topology.get_path_to("charlie", 3).unwrap();
+        // Build the path in known order so each RelayNode peels exactly the
+        // layer that was encrypted for its public key.  get_path_to draws from
+        // a HashMap whose iteration order is non-deterministic, which would make
+        // the relay-to-position assignment unpredictable.
+        let path = vec![
+            RelayHop::new(b"relay1".to_vec(), pubkey_from_secret(sk1)),
+            RelayHop::new(b"relay2".to_vec(), pubkey_from_secret(sk2)),
+            RelayHop::new(b"relay3".to_vec(), pubkey_from_secret(sk3)),
+        ];
 
-        // Create Sphinx packet
+        let message = b"Secret consensus vote";
         let packet = SphinxPacket::create(message, &path, 1024).unwrap();
         println!("Created packet, size: {}", packet.to_bytes().len());
 
-        // Relay 1 receives and processes
-        let mut relay1 = RelayNode::new("relay1".to_string(), [1u8; 32]);
+        // Relay 1 peels its layer
+        let mut relay1 = RelayNode::new("relay1".to_string(), sk1);
         assert!(relay1.receive_packet(packet.clone()).is_ok());
         assert_eq!(relay1.queue_size(), 1);
-
-        // Relay 1 peels layer
         let packet2 = relay1.process_next_packet().unwrap().unwrap();
-        println!(
-            "Relay1 processed, payload size: {}",
-            packet2.payload.len()
-        );
+        println!("Relay1 processed, payload size: {}", packet2.payload.len());
 
-        // Relay 2 receives and processes
-        let mut relay2 = RelayNode::new("relay2".to_string(), [2u8; 32]);
+        // Relay 2 peels its layer
+        let mut relay2 = RelayNode::new("relay2".to_string(), sk2);
         assert!(relay2.receive_packet(packet2.clone()).is_ok());
-
         let packet3 = relay2.process_next_packet().unwrap().unwrap();
-        println!(
-            "Relay2 processed, payload size: {}",
-            packet3.payload.len()
-        );
+        println!("Relay2 processed, payload size: {}", packet3.payload.len());
 
-        // Relay 3 receives (final relay)
-        let mut relay3 = RelayNode::new("relay3".to_string(), [3u8; 32]);
+        // Relay 3 receives (final hop — no further peeling in this test)
+        let mut relay3 = RelayNode::new("relay3".to_string(), sk3);
         assert!(relay3.receive_packet(packet3).is_ok());
 
         println!("✓ Message successfully routed through 3-relay mixnet");
@@ -88,8 +100,8 @@ mod integration_tests {
         let msg2 = b"Message B";
 
         let path = vec![
-            RelayHop::new(b"relay1".to_vec(), [1u8; 32]),
-            RelayHop::new(b"relay2".to_vec(), [2u8; 32]),
+            RelayHop::new(b"relay1".to_vec(), pubkey_from_secret([1u8; 32])),
+            RelayHop::new(b"relay2".to_vec(), pubkey_from_secret([2u8; 32])),
         ];
 
         let packet1 = SphinxPacket::create(msg1, &path, 512).unwrap();
@@ -112,13 +124,13 @@ mod integration_tests {
 
     #[test]
     fn test_fixed_packet_size() {
-        let mut messages = vec![
+        let messages = vec![
             &b"Short"[..],
             &b"This is a medium length message for testing"[..],
             &b"A very long message that would normally be much larger and should still be padded to the same size as shorter messages to maintain uniformity and anonymity in the network"[..],
         ];
 
-        let path = vec![RelayHop::new(b"relay".to_vec(), [1u8; 32])];
+        let path = vec![RelayHop::new(b"relay".to_vec(), pubkey_from_secret([1u8; 32]))];
         let packet_size = 1024;
 
         let packets: Vec<_> = messages
@@ -145,7 +157,7 @@ mod integration_tests {
         let mut relay = RelayNode::new("relay".to_string(), [1u8; 32]);
 
         let message = b"test";
-        let path = vec![RelayHop::new(b"relay".to_vec(), [1u8; 32])];
+        let path = vec![RelayHop::new(b"relay".to_vec(), pubkey_from_secret([1u8; 32]))];
         let packet = SphinxPacket::create(message, &path, 512).unwrap();
 
         // First packet accepted
@@ -161,15 +173,19 @@ mod integration_tests {
 
     #[test]
     fn test_cascade_processing() {
+        let sk1 = [1u8; 32];
+        let sk2 = [2u8; 32];
+        let sk3 = [3u8; 32];
+
         let path = vec![
-            RelayHop::new(b"relay1".to_vec(), [1u8; 32]),
-            RelayHop::new(b"relay2".to_vec(), [2u8; 32]),
-            RelayHop::new(b"relay3".to_vec(), [3u8; 32]),
+            RelayHop::new(b"relay1".to_vec(), pubkey_from_secret(sk1)),
+            RelayHop::new(b"relay2".to_vec(), pubkey_from_secret(sk2)),
+            RelayHop::new(b"relay3".to_vec(), pubkey_from_secret(sk3)),
         ];
 
         // Create multiple packets
-        let messages = vec![b"msg1", b"msg2", b"msg3"];
-        let mut relay = RelayNode::new("relay1".to_string(), [1u8; 32]);
+        let messages: Vec<&[u8]> = vec![b"msg1", b"msg2", b"msg3"];
+        let mut relay = RelayNode::new("relay1".to_string(), sk1);
 
         for msg in &messages {
             let packet = SphinxPacket::create(*msg, &path, 512).unwrap();

@@ -66,8 +66,9 @@ impl RelayNode {
         let mut packet_id = [0u8; 32];
         packet_id.copy_from_slice(&packet.header.ephemeral_key[..32]);
 
-        // Check for duplicate
-        if self.processed.contains(&packet_id) {
+        // Check for duplicate — mark seen immediately so a second receive of
+        // the same packet is rejected even while it's still queued.
+        if !self.processed.insert(packet_id) {
             return Err(MixnetError::InvalidPacket(
                 "Packet already processed".to_string(),
             ));
@@ -83,16 +84,9 @@ impl RelayNode {
     /// Returns the packet to forward (with one layer peeled)
     pub fn process_next_packet(&mut self) -> Result<Option<SphinxPacket>, MixnetError> {
         if let Some(mut message) = self.queue.pop_front() {
-            // Verify packet integrity
-            // (In production: actual verification)
-
             // Peel onion layer
             let next_packet = message.packet.peel_layer(&self.secret_key)?;
-
-            // Mark as processed
-            self.processed.insert(message.packet_id);
             message.hop_count += 1;
-
             Ok(Some(next_packet))
         } else {
             Ok(None)

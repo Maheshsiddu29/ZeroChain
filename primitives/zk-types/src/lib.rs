@@ -5,6 +5,8 @@
 extern crate alloc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
+
+pub use sp_runtime::DispatchResult;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
@@ -23,7 +25,7 @@ pub type AssetId = [u8; 32];
 /// implemented by pallet-shielded-assets, called by pallet-proof-verifier
 /// after groth16 verification passes. lives here to avoid circular deps.
 pub trait ShieldedTransferHandler {
-    fn process_verified_transfer(inputs: &TransferPublicInputs);
+    fn process_verified_transfer(inputs: &TransferPublicInputs) -> sp_runtime::DispatchResult;
 }
 
 /// implemented by pallet-zk-staking, called by pallet-proof-verifier
@@ -140,6 +142,10 @@ pub enum VerifyingKey {
 pub struct ShieldedTransferData {
     pub proof: Groth16Proof,
     pub inputs: TransferPublicInputs,
+    /// Encrypted note memos, one per real output commitment (positionally matched).
+    /// Each entry: X25519_ephemeral_pk(32) || ChaCha20Poly1305_nonce(12) || ciphertext(96) = 140 bytes.
+    /// Extracted and stored by the pallet AFTER verification; never passed to the verifier.
+    pub memos: Vec<Vec<u8>>,
 }
 
 //  proof submission envelope (what the extrinsic receives)
@@ -230,6 +236,7 @@ mod tests {
                 asset_id: NATIVE_ASSET_ID,
                 fee_commitment: [0xFF; 32],
             },
+            memos: vec![],
         }));
         let encoded = submission.encode();
         let decoded = ProofSubmission::decode(&mut &encoded[..]).unwrap();

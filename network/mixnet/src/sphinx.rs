@@ -2,7 +2,7 @@
 //!
 //!
 //! Structure:
-//! ```
+//! ```text
 //! SphinxPacket {
 //!   header: (ephemeral_key, route_info, relay_data),
 //!   payload: (encrypted_payload)

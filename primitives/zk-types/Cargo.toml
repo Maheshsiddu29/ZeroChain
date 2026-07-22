@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 codec = { package = "parity-scale-codec", version = "3.6", default-features = false, features = ["derive", "max-encoded-len"] }
 scale-info = { version = "2.11", default-features = false, features = ["derive"] }
+sp-runtime = { workspace = true, default-features = false }
 
 [dev-dependencies]
 codec = { package = "parity-scale-codec", version = "3.6", features = ["derive"] }
@@ -18,5 +19,5 @@ default = ["std"]
 std = [
     "codec/std",
     "scale-info/std",
-   
+    "sp-runtime/std",
 ]

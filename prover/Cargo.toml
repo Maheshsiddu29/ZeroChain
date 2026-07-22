@@ -8,6 +8,10 @@ description = "Zero Chain ZK Proof Generator"
 name = "zk-prover"
 path = "src/main.rs"
 
+[[bin]]
+name = "generate-testnet-setup"
+path = "src/bin/generate_testnet_setup.rs"
+
 [dependencies]
 # CLI
 clap = { version = "4.6.1", features = ["derive"] }
@@ -41,6 +45,7 @@ anyhow = { workspace = true }
 
 # Local dependencies
 zk-types = { workspace = true }
+zc-crypto = { workspace = true }
 transfer-circuit = { path = "../circuits/transfer" }
 origin-circuit = { path = "../circuits/origin" }
 
@@ -59,6 +64,7 @@ std = [
     "ark-relations/std",
     "ark-r1cs-std/std",
     "zk-types/std",
+    "zc-crypto/std",
 ]
 
 [dev-dependencies]

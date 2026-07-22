@@ -69,7 +69,9 @@ impl pallet_grandpa::Config for Runtime {
 	type WeightInfo = ();
 	type MaxAuthorities = ConstU32<32>;
 	type MaxNominators = ConstU32<0>;
-	type MaxSetIdSessionEntries = ConstU64<0>;
+	// L-10: non-zero so GRANDPA equivocation slashing is active.
+	// 3600 set-id changes ≈ months of sessions at typical testnet cadence.
+	type MaxSetIdSessionEntries = ConstU64<3600>;
 	type KeyOwnerProof = sp_core::Void;
 	type EquivocationReportSystem = ();
 }
@@ -127,6 +129,7 @@ impl pallet_template::Config for Runtime {
 impl pallet_shielded_assets::Config for Runtime {
 	type MaxCommitments = ConstU32<1048576>;
 	type MerkleRootHistory = ConstU32<32>;
+	type Currency = Balances;
 }
 
 /// Configure pallet-proof-verifier
@@ -136,24 +139,29 @@ impl pallet_proof_verifier::Config for Runtime {
 	type MaxProofSize = ConstU32<10240>;
 }
 
-/// Configure pallet-zk-validator
+/// Experimental pallets — not security-audited, absent from production builds.
+/// Enable with: cargo build --features experimental
+#[cfg(feature = "experimental")]
 impl pallet_zk_validator::Config for Runtime {
 	type MaxValidators = ConstU32<1024>;
 }
 
+#[cfg(feature = "experimental")]
 impl pallet_zk_staking::Config for Runtime {
-    type MaxStakers = frame_support::traits::ConstU32<1024>;
-    type MinStakeAmount = frame_support::traits::ConstU128<1000>;
+	type MaxStakers = frame_support::traits::ConstU32<1024>;
+	type MinStakeAmount = frame_support::traits::ConstU128<1000>;
 }
 
+#[cfg(feature = "experimental")]
 impl pallet_bls_consensus::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type SignatureThreshold = frame_support::traits::ConstU16<7>;
-    type ValidatorCount = frame_support::traits::ConstU16<10>;
-    type MaxPartialSignatures = frame_support::traits::ConstU32<10>;
+	type RuntimeEvent = RuntimeEvent;
+	type SignatureThreshold = frame_support::traits::ConstU16<7>;
+	type ValidatorCount = frame_support::traits::ConstU16<10>;
+	type MaxPartialSignatures = frame_support::traits::ConstU32<10>;
 }
 
+#[cfg(feature = "experimental")]
 impl pallet_zk_bridge::Config for Runtime {
-    type MaxSourceChains = frame_support::traits::ConstU32<64>;
-    type MaxPayloadSize = frame_support::traits::ConstU32<4096>;
+	type MaxSourceChains = frame_support::traits::ConstU32<64>;
+	type MaxPayloadSize = frame_support::traits::ConstU32<4096>;
 }

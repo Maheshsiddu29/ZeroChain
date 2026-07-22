@@ -13,9 +13,11 @@ ark-serialize = { workspace = true }
 ark-std = { workspace = true }
 ark-relations = { workspace = true }
 ark-r1cs-std = { workspace = true }
+# Provides PoseidonSpongeVar (r1cs feature) — same crate used by zc-crypto for native Poseidon
+ark-crypto-primitives = { workspace = true, features = ["r1cs"] }
 
-# Hashing (for native commitment/nullifier computation)
-sha2 = "0.10"
+# Crypto (Poseidon for native commitment/nullifier, shared PoseidonConfig)
+zc-crypto = { workspace = true }
 
 [dev-dependencies]
 ark-groth16 = { workspace = true }
@@ -35,4 +37,5 @@ std = [
     "ark-std/std",
     "ark-relations/std",
     "ark-r1cs-std/std",
+    "zc-crypto/std",
 ]

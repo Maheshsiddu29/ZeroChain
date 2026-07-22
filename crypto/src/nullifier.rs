@@ -2,14 +2,16 @@
 //!
 //! nullifier = Poseidon(nullifier_key, commitment)
 
-use crate::poseidon::{PoseidonHasher, Hash256};
+#[cfg(feature = "std")]
+use crate::poseidon::Hash256;
 
 pub struct NullifierDeriver;
 
+#[cfg(feature = "std")]
 impl NullifierDeriver {
     /// Derive a nullifier from secret key and commitment
     pub fn derive(nullifier_key: &Hash256, commitment: &Hash256) -> Hash256 {
-        PoseidonHasher::hash_two(nullifier_key, commitment)
+        crate::poseidon::PoseidonHasher::hash_two(nullifier_key, commitment)
     }
 
     /// Verify a nullifier matches
@@ -23,7 +25,7 @@ impl NullifierDeriver {
     }
 }
 
-/// Generate a random nullifier key
+#[cfg(feature = "std")]
 pub fn random_nullifier_key() -> Hash256 {
     use rand::RngCore;
     let mut rng = rand::thread_rng();
@@ -32,6 +34,7 @@ pub fn random_nullifier_key() -> Hash256 {
     key
 }
 
+#[cfg(feature = "std")]
 fn constant_time_eq(a: &Hash256, b: &Hash256) -> bool {
     use subtle::ConstantTimeEq;
     a.ct_eq(b).into()

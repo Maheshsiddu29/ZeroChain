@@ -1,17 +1,19 @@
 //! Poseidon-based Merkle tree
 
-use crate::poseidon::{PoseidonHasher, Hash256};
+use crate::poseidon::Hash256;
 
 pub const TREE_DEPTH: usize = 32;
 pub const EMPTY_LEAF: Hash256 = [0u8; 32];
 
-/// Sparse Merkle tree
+/// Sparse Merkle tree (requires std for Poseidon hashing and heap allocation)
+#[cfg(feature = "std")]
 pub struct MerkleTree {
     layers: Vec<Vec<Hash256>>,
     depth: usize,
     num_leaves: usize,
 }
 
+#[cfg(feature = "std")]
 impl MerkleTree {
     /// Create tree from leaves
     pub fn new(leaves: &[Hash256]) -> Self {
@@ -42,7 +44,7 @@ impl MerkleTree {
                     &EMPTY_LEAF
                 };
 
-                let parent = PoseidonHasher::hash_two(left, right);
+                let parent = crate::poseidon::PoseidonHasher::hash_two(left, right);
                 next_layer.push(parent);
             }
 
@@ -127,9 +129,9 @@ impl MerkleTree {
 
         for (sibling, &is_right) in path.iter().zip(indices.iter()) {
             current = if is_right {
-                PoseidonHasher::hash_two(sibling, &current)
+                crate::poseidon::PoseidonHasher::hash_two(sibling, &current)
             } else {
-                PoseidonHasher::hash_two(&current, sibling)
+                crate::poseidon::PoseidonHasher::hash_two(&current, sibling)
             };
         }
 
@@ -145,6 +147,20 @@ impl MerkleTree {
     }
 }
 
+/// Compute the Poseidon empty-tree root for a tree of `depth` levels.
+///
+/// Convention (matches circuit): z[0] = [0u8;32], z[i] = Poseidon(z[i-1], z[i-1]).
+/// Returns z[depth].
+#[cfg(feature = "std")]
+pub fn empty_root_depth(depth: usize) -> Hash256 {
+    let mut z = EMPTY_LEAF;
+    for _ in 0..depth {
+        z = crate::poseidon::PoseidonHasher::hash_two(&z, &z);
+    }
+    z
+}
+
+#[cfg(feature = "std")]
 #[derive(Clone, Debug)]
 pub struct MerkleProof {
     pub path: Vec<Hash256>,

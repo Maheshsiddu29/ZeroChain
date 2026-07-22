@@ -6,30 +6,48 @@ description = "Zero Chain Cryptographic Primitives"
 
 [dependencies]
 # Hashing
-blake2 = "0.10"
-sha2 = "0.10"
+blake2 = { version = "0.10", default-features = false }
 
 # Field arithmetic (for Poseidon)
 ark-ff = { version = "0.4", default-features = false }
 ark-bn254 = { version = "0.4", default-features = false }
 
+# Poseidon (std-only; no_std build path never calls it)
+# ark-crypto-primitives provides PoseidonConfig — shared with the circuit gadget.
+# light-poseidon is removed from production deps (kept in dev-deps as oracle).
+ark-crypto-primitives = { version = "0.4", default-features = false, features = ["sponge"], optional = true }
+
 # Serialization
 serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
-hex = "0.4"
 
 # Security
 zeroize = { version = "1.7", features = ["derive"] }
-subtle = "2.5"
+subtle = { version = "2.5", default-features = false }
 
-# Random
-rand = { version = "0.8", features = ["std", "std_rng"] }
+# Random (std-only; no_std wasm builds must not pull in getrandom)
+rand = { version = "0.8", features = ["std", "std_rng"], optional = true }
 
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 hex = "0.4"
+# hex moved from [dependencies]: only used in test/debug print contexts
+# Validation oracle: iden3 BN254 x5 constants validated against published vectors.
+# Used only in poseidon_parity tests; NOT a production dependency.
+light-poseidon = "0.2"
 
 [features]
 default = ["std"]
-std = ["serde", "serde_json", "ark-ff/std", "ark-bn254/std"]
+# poseidon: exposes the Poseidon hash in no_std (WASM runtime) without pulling in std.
+# ark-crypto-primitives with sponge is fully no_std-compatible (uses ark_std, no OS calls).
+# std includes poseidon automatically.
+poseidon = ["dep:ark-crypto-primitives", "ark-bn254/scalar_field"]
+std = [
+    "poseidon",
+    "serde",
+    "serde_json",
+    "ark-ff/std",
+    "ark-bn254/std",
+    "dep:rand",
+]

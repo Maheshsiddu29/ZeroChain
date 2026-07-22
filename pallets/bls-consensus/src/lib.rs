@@ -1,4 +1,7 @@
 //! BLS12-381 Consensus Pallet with FROST DKG
+//!
+//! **EXPERIMENTAL — not security-audited, disabled in production builds.**
+//! Enable with `--features experimental` for research and testing only.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 

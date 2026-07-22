@@ -36,7 +36,27 @@ impl Cli {
 /// Available commands
 #[derive(StructOpt, Debug)]
 pub enum Command {
-    /// Submit a shielded transfer
+    /// Generate a new encrypted wallet keypair
+    #[structopt(name = "generate-keypair")]
+    GenerateKeypair(GenerateKeypairOpts),
+
+    /// Display SR25519 account ID and ZK pubkey for an existing wallet
+    #[structopt(name = "keypair")]
+    Keypair(KeypairOpts),
+
+    /// Shield transparent balance into a private note
+    #[structopt(name = "shield")]
+    Shield(ShieldOpts),
+
+    /// Scan on-chain events to update note cm_index values
+    #[structopt(name = "scan")]
+    Scan(ScanOpts),
+
+    /// Perform a private shielded transfer (requires a proving key)
+    #[structopt(name = "transfer")]
+    Transfer(TransferOpts),
+
+    /// Submit a shielded transfer (legacy — takes a pre-built proof file)
     #[structopt(name = "submit-shielded-transfer")]
     SubmitShieldedTransfer(SubmitShieldedTransferOpts),
 
@@ -71,15 +91,128 @@ pub enum Command {
     /// Monitor on-chain events
     #[structopt(name = "monitor")]
     Monitor(MonitorOpts),
+
+    /// Rebuild the on-chain Merkle root from all stored commitments (operator sudo call)
+    #[structopt(name = "update-root")]
+    UpdateRoot(UpdateRootOpts),
+
+    /// Upload a Groth16 verifying key to ProofVerifier storage via sudo
+    #[structopt(name = "set-vk")]
+    SetVk(SetVkOpts),
+
+    /// Import a received note from a `transfer --export` file into the local note store
+    #[structopt(name = "import-note")]
+    ImportNote(ImportNoteOpts),
+}
+
+/// Options for `keypair`
+#[derive(StructOpt, Debug)]
+pub struct KeypairOpts {
+    /// Path to the encrypted wallet keyfile
+    #[structopt(short, long)]
+    pub wallet: PathBuf,
+}
+
+/// Options for `shield`
+#[derive(StructOpt, Debug)]
+pub struct ShieldOpts {
+    /// Path to the encrypted wallet keyfile (ZK identity — provides owner_pubkey for the note)
+    #[structopt(short, long)]
+    pub wallet: PathBuf,
+
+    /// Amount to shield in planck (native unit)
+    #[structopt(short, long)]
+    pub amount: u64,
+
+    /// Path to the note store JSON (created if absent)
+    #[structopt(long, default_value = "notes.json")]
+    pub note_store: PathBuf,
+
+    /// Transaction signer: dev key (//Alice), BIP39 phrase, or 0x-prefixed 32-byte seed.
+    /// This account pays transaction fees and must be funded.
+    /// The ZK note owner is derived from --wallet, not from this key.
+    #[structopt(long, default_value = "//Alice")]
+    pub signer: String,
+}
+
+/// Options for `scan`
+#[derive(StructOpt, Debug)]
+pub struct ScanOpts {
+    /// Path to the encrypted wallet keyfile (to match owned notes)
+    #[structopt(short, long)]
+    pub wallet: PathBuf,
+
+    /// Path to the note store JSON
+    #[structopt(long, default_value = "notes.json")]
+    pub note_store: PathBuf,
+
+    /// Transaction signer for the RPC connection (scan is read-only but still
+    /// needs an authenticated connection on some node configs).
+    #[structopt(long, default_value = "//Alice")]
+    pub signer: String,
+}
+
+/// Options for `transfer`
+#[derive(StructOpt, Debug)]
+pub struct TransferOpts {
+    /// Path to the encrypted wallet keyfile (ZK spender identity)
+    #[structopt(short, long)]
+    pub wallet: PathBuf,
+
+    /// Recipient ZK pubkey (32-byte hex, Poseidon(recipient_sk))
+    #[structopt(long)]
+    pub to: String,
+
+    /// Amount to transfer in planck
+    #[structopt(short, long)]
+    pub amount: u64,
+
+    /// Path to the Groth16 proving key file
+    #[structopt(long)]
+    pub pk: PathBuf,
+
+    /// Path to the note store JSON
+    #[structopt(long, default_value = "notes.json")]
+    pub note_store: PathBuf,
+
+    /// Transaction signer: dev key (//Alice), BIP39 phrase, or 0x-prefixed seed.
+    /// Must be a funded on-chain account to pay transaction fees.
+    #[structopt(long, default_value = "//Alice")]
+    pub signer: String,
+
+    /// If set, write recipient note secrets to this JSON file after the proof is accepted.
+    /// The recipient loads it with `import-note` to discover and later spend the received note.
+    #[structopt(long)]
+    pub export: Option<PathBuf>,
+}
+
+/// Options for `import-note`
+#[derive(StructOpt, Debug)]
+pub struct ImportNoteOpts {
+    /// Recipient wallet file (must own the note — owner_pubkey verified against Poseidon(sk)).
+    #[structopt(short, long)]
+    pub wallet: PathBuf,
+
+    /// JSON file produced by `transfer --export` containing the note secrets.
+    #[structopt(long)]
+    pub note_file: PathBuf,
+
+    /// Recipient's note store (created if absent).
+    #[structopt(long, default_value = "notes.json")]
+    pub note_store: PathBuf,
+}
+
+/// Options for generate-keypair
+#[derive(StructOpt, Debug)]
+pub struct GenerateKeypairOpts {
+    /// Output path for the encrypted keyfile
+    #[structopt(short, long)]
+    pub output: PathBuf,
 }
 
 /// Options for submit-shielded-transfer
 #[derive(StructOpt, Debug)]
 pub struct SubmitShieldedTransferOpts {
-    /// Sender account
-    #[structopt(short, long)]
-    pub from: String,
-
     /// Recipient commitment (32 bytes, hex)
     #[structopt(short, long)]
     pub to_commitment: String,
@@ -116,14 +249,16 @@ impl SubmitShieldedTransferOpts {
         Ok(())
     }
 
-    /// Convert to extrinsic data
+    /// Convert to extrinsic data.
+    ///
+    /// M-06: sender identity is NOT included — the extrinsic carries only the
+    /// cryptographic proof, recipient commitment, and amount.  The origin is
+    /// authenticated by the signed extrinsic wrapper, not by a plaintext field.
     pub fn to_extrinsic_data(&self) -> Result<Vec<u8>> {
-        // Read proof
         let proof_bytes = std::fs::read(&self.proof)?;
 
-        // Build extrinsic: from || to_commitment || amount || proof
+        // to_commitment || amount || proof  (no plaintext sender)
         let mut data = Vec::new();
-        data.extend_from_slice(self.from.as_bytes());
         data.extend_from_slice(&hex::decode(&self.to_commitment)?);
         data.extend_from_slice(&self.amount.to_le_bytes());
         data.extend_from_slice(&proof_bytes);
@@ -317,4 +452,24 @@ pub struct MonitorOpts {
     /// Show all events
     #[structopt(short, long)]
     pub all: bool,
+}
+
+/// Options for `update-root`
+#[derive(StructOpt, Debug)]
+pub struct UpdateRootOpts {
+    /// Transaction signer (must be the sudo key): dev key (//Alice), BIP39 phrase, or 0x seed.
+    #[structopt(long, default_value = "//Alice")]
+    pub signer: String,
+}
+
+/// Options for `set-vk`
+#[derive(StructOpt, Debug)]
+pub struct SetVkOpts {
+    /// Transaction signer (must be the sudo key): dev key (//Alice), BIP39 phrase, or 0x seed.
+    #[structopt(long, default_value = "//Alice")]
+    pub signer: String,
+
+    /// Path to the serialized verifying key file (arkworks uncompressed format).
+    #[structopt(long)]
+    pub vk: PathBuf,
 }

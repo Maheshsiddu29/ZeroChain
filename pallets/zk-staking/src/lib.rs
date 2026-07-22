@@ -2,6 +2,9 @@
 //! validators bond tokens behind pedersen commitments.
 //! unstaking requires a zk proof of commitment ownership.
 //! slashing uses zk fraud proofs for equivocation — identity never revealed.
+//!
+//! **EXPERIMENTAL — not security-audited, disabled in production builds.**
+//! Enable with `--features experimental` for research and testing only.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -143,7 +146,7 @@ pub mod pallet {
             );
 
             StakeCommitments::<T>::insert(&commitment, amount);
-            StakeCount::<T>::mutate(|c| *c += 1);
+            StakeCount::<T>::mutate(|c| *c = c.saturating_add(1));
             TotalStaked::<T>::mutate(|t| *t = t.saturating_add(amount));
 
             Self::deposit_event(Event::Staked { commitment, amount });
@@ -183,7 +186,7 @@ pub mod pallet {
             UnstakedNullifiers::<T>::insert(&nullifier, block_number);
             StakeCommitments::<T>::remove(&commitment);
             StakeCount::<T>::mutate(|c| *c = c.saturating_sub(1));
-            UnstakeCount::<T>::mutate(|c| *c += 1);
+            UnstakeCount::<T>::mutate(|c| *c = c.saturating_add(1));
             TotalStaked::<T>::mutate(|t| *t = t.saturating_sub(amount));
 
             Self::deposit_event(Event::Unstaked { nullifier, amount });
@@ -209,7 +212,7 @@ pub mod pallet {
 
             let block_number = <frame_system::Pallet<T>>::block_number();
             SlashedNullifiers::<T>::insert(&nullifier, block_number);
-            SlashCount::<T>::mutate(|c| *c += 1);
+            SlashCount::<T>::mutate(|c| *c = c.saturating_add(1));
 
             Self::deposit_event(Event::Slashed { nullifier, validator_root });
             Ok(())
@@ -229,7 +232,7 @@ pub mod pallet {
 
             let block_number = <frame_system::Pallet<T>>::block_number();
             SlashedNullifiers::<T>::insert(&inputs.nullifier, block_number);
-            SlashCount::<T>::mutate(|c| *c += 1);
+            SlashCount::<T>::mutate(|c| *c = c.saturating_add(1));
 
             Self::deposit_event(Event::Slashed {
                 nullifier: inputs.nullifier,

@@ -4,6 +4,68 @@
 //! Uses arkworks for BLS12-381 curve operations
 
 use std::fmt;
+use zc_crypto::poseidon::PoseidonHasher;
+
+// ── Real circuit proving (TransferCircuit + Groth16/BN254) ──────────────────
+
+/// Proving key bundle for the fixed-shape TransferCircuit.
+pub struct TransferCircuitKeys {
+    pub proving_key: ark_groth16::ProvingKey<ark_bn254::Bn254>,
+    pub verifying_key: ark_groth16::VerifyingKey<ark_bn254::Bn254>,
+}
+
+/// Generate proving and verifying keys for the fixed-shape TransferCircuit.
+///
+/// This runs Groth16 setup using `TransferCircuit::default()` (all dummy slots).
+/// The fixed circuit shape ensures the keys are valid for any actual transfer.
+///
+/// WARNING: This function is expensive (seconds) — run once and persist the keys.
+pub fn setup_transfer_circuit_keys(
+    rng: &mut (impl ark_std::rand::Rng + ark_std::rand::CryptoRng),
+) -> Result<TransferCircuitKeys, Groth16Error> {
+    use ark_groth16::Groth16;
+    use ark_snark::CircuitSpecificSetupSNARK;
+    use ark_bn254::Bn254;
+    use transfer_circuit::TransferCircuit;
+
+    let (proving_key, verifying_key) = Groth16::<Bn254>::setup(TransferCircuit::default(), rng)
+        .map_err(|e| Groth16Error::ProofGenerationFailed(format!("Groth16 setup failed: {e}")))?;
+
+    Ok(TransferCircuitKeys { proving_key, verifying_key })
+}
+
+/// Generate a real Groth16 proof for a TransferCircuit.
+///
+/// The proving key must have been generated for the SAME circuit shape
+/// (i.e., from `setup_transfer_circuit_keys`).
+pub fn prove_transfer_circuit(
+    circuit: transfer_circuit::TransferCircuit,
+    keys: &TransferCircuitKeys,
+    rng: &mut (impl ark_std::rand::Rng + ark_std::rand::CryptoRng),
+) -> Result<ark_groth16::Proof<ark_bn254::Bn254>, Groth16Error> {
+    use ark_groth16::Groth16;
+    use ark_snark::SNARK;
+    use ark_bn254::Bn254;
+
+    Groth16::<Bn254>::prove(&keys.proving_key, circuit, rng)
+        .map_err(|e| Groth16Error::ProofGenerationFailed(format!("Groth16 prove failed: {e}")))
+}
+
+/// Verify a TransferCircuit proof against a list of public inputs.
+///
+/// Public inputs must be ordered as produced by `TransferCircuit::generate_constraints`:
+///   [merkle_root, nullifiers×MAX_INPUTS, output_commitments×MAX_OUTPUTS, asset_id, fee_commitment]
+pub fn verify_transfer_circuit_proof(
+    proof: &ark_groth16::Proof<ark_bn254::Bn254>,
+    keys: &TransferCircuitKeys,
+    public_inputs: &[ark_bn254::Fr],
+) -> bool {
+    use ark_groth16::Groth16;
+    use ark_snark::SNARK;
+    use ark_bn254::Bn254;
+
+    Groth16::<Bn254>::verify(&keys.verifying_key, public_inputs, proof).unwrap_or(false)
+}
 
 /// Groth16 Generation Error
 #[derive(Clone, Debug)]
@@ -66,32 +128,16 @@ impl TransferWitness {
         Ok(())
     }
 
-    /// Compute commitment from secret and randomness
-    /// commitment = H(secret || randomness)
+    /// Compute commitment: Poseidon(secret, randomness)
     pub fn compute_commitment(&self) -> [u8; 32] {
-        use sha2::{Sha256, Digest};
-        
-        let mut hasher = Sha256::new();
-        hasher.update(&self.secret);
-        hasher.update(&self.randomness);
-        
-        let mut commitment = [0u8; 32];
-        commitment.copy_from_slice(&hasher.finalize());
-        commitment
+        PoseidonHasher::hash_two(&self.secret, &self.randomness)
     }
 
-    /// Compute nullifier to prevent double-spending
-    /// nullifier = H(secret || amount)
+    /// Compute nullifier: Poseidon(secret, amount_bytes)
     pub fn compute_nullifier(&self) -> [u8; 32] {
-        use sha2::{Sha256, Digest};
-        
-        let mut hasher = Sha256::new();
-        hasher.update(&self.secret);
-        hasher.update(&self.amount.to_le_bytes());
-        
-        let mut nullifier = [0u8; 32];
-        nullifier.copy_from_slice(&hasher.finalize());
-        nullifier
+        let mut amount_bytes = [0u8; 32];
+        amount_bytes[..16].copy_from_slice(&self.amount.to_le_bytes());
+        PoseidonHasher::hash_two(&self.secret, &amount_bytes)
     }
 
     /// Compute merkle root from path
@@ -105,18 +151,11 @@ impl TransferWitness {
         let mut current = self.compute_commitment();
 
         for (sibling, is_right) in self.merkle_path.iter().zip(self.merkle_indices.iter()) {
-            use sha2::{Sha256, Digest};
-            let mut hasher = Sha256::new();
-
-            if *is_right {
-                hasher.update(&current);
-                hasher.update(sibling);
+            current = if *is_right {
+                PoseidonHasher::hash_two(&current, sibling)
             } else {
-                hasher.update(sibling);
-                hasher.update(&current);
-            }
-
-            current.copy_from_slice(&hasher.finalize());
+                PoseidonHasher::hash_two(sibling, &current)
+            };
         }
 
         Ok(current)
@@ -447,5 +486,26 @@ mod tests {
 
         let result = witness.validate();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_transfer_circuit_satisfiability() {
+        // Verify the real TransferCircuit (with Poseidon constraints) is satisfiable
+        // for a valid witness. This uses ConstraintSystem directly (no Groth16 setup)
+        // so it completes in milliseconds even for MAX_INPUTS=8, TREE_DEPTH=32.
+        use ark_relations::r1cs::{ConstraintSystem, ConstraintSynthesizer};
+        use ark_bn254::Fr;
+        use transfer_circuit::TransferCircuit;
+
+        let circuit = TransferCircuit::test_circuit();
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        circuit.generate_constraints(cs.clone()).expect("constraint generation must not fail");
+
+        assert!(
+            cs.is_satisfied().expect("is_satisfied must not fail"),
+            "TransferCircuit::test_circuit() must satisfy all Poseidon constraints"
+        );
+
+        println!("TransferCircuit constraint count: {}", cs.num_constraints());
     }
 }

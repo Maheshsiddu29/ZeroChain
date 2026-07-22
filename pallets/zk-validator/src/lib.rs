@@ -1,6 +1,9 @@
 //! anonymous validator set for zerochain.
 //! validators register credential commitments into a merkle tree
 //! and prove membership with halo2 proofs without revealing identity.
+//!
+//! **EXPERIMENTAL — not security-audited, disabled in production builds.**
+//! Enable with `--features experimental` for research and testing only.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -156,7 +159,7 @@ pub mod pallet {
             ensure!(!SlashedNullifiers::<T>::contains_key(&nullifier), Error::<T>::AlreadySlashed);
             let block_number = <frame_system::Pallet<T>>::block_number();
             SlashedNullifiers::<T>::insert(&nullifier, block_number);
-            SlashedCount::<T>::mutate(|c| *c += 1);
+            SlashedCount::<T>::mutate(|c| *c = c.saturating_add(1));
             Self::deposit_event(Event::ValidatorSlashed { nullifier });
             Ok(())
         }
@@ -173,7 +176,7 @@ pub mod pallet {
             let stored_root = ValidatorRoot::<T>::get().ok_or(Error::<T>::NoValidatorRoot)?;
             ensure!(stored_root == inputs.validator_root, Error::<T>::ValidatorRootMismatch);
 
-            ProofsThisEpoch::<T>::mutate(|c| *c += 1);
+            ProofsThisEpoch::<T>::mutate(|c| *c = c.saturating_add(1));
             Self::deposit_event(Event::MembershipVerified { epoch: inputs.epoch, slot: inputs.slot });
             Ok(())
         }
