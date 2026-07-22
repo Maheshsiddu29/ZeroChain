@@ -62,6 +62,7 @@ pub fn create_transfer_submission(
     let data = zk_types::ShieldedTransferData {
         proof: zk_proof,
         inputs,
+        memos: vec![],
     };
 
     let submission = zk_types::ProofSubmission::ShieldedTransfer(Box::new(data));

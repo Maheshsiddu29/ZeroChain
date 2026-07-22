@@ -15,50 +15,14 @@ fn get_rng() -> rand::rngs::ThreadRng {
     rand::thread_rng()
 }
 
-/// Create a dummy circuit with the same shape as a real 1-in-1-out transfer.
+/// Create a valid dummy circuit for Groth16 setup.
 ///
-/// CRITICAL: The dummy circuit used for setup MUST have the same number of
-/// constraints as the real circuit. This means same number of input notes,
-/// output notes, and merkle path lengths.
+/// Uses `TransferCircuit::test_circuit()` which has correct Poseidon-based
+/// commitments, nullifiers, and spend authority.  The fixed shape
+/// (MAX_INPUTS=8, MAX_OUTPUTS=8, TREE_DEPTH=32) ensures keys generated here
+/// are valid for any proving circuit with the same shape.
 fn dummy_circuit_1in_1out() -> TransferCircuit {
-    let asset_id = Fr::from(0u64);
-    let blinding = Fr::from(1u64);
-    let owner = Fr::from(2u64);
-    let secret_key = Fr::from(3u64);
-
-    let input_note = Note {
-        value: 100,
-        asset_id,
-        blinding,
-        owner_pubkey: owner,
-    };
-
-    let output_note = Note {
-        value: 100,
-        asset_id,
-        blinding: Fr::from(4u64),
-        owner_pubkey: Fr::from(5u64),
-    };
-
-    // Compute values matching circuit logic
-    let input_value_fr = Fr::from(input_note.value);
-    let input_commitment = input_value_fr + input_note.asset_id + input_note.blinding + input_note.owner_pubkey;
-    let nullifier = input_commitment + secret_key;
-
-    let output_value_fr = Fr::from(output_note.value);
-    let output_commitment = output_value_fr + output_note.asset_id + output_note.blinding + output_note.owner_pubkey;
-
-    TransferCircuit {
-        input_notes: vec![input_note],
-        output_notes: vec![output_note],
-        merkle_paths: vec![MerklePath { path: vec![], indices: vec![] }],
-        secret_keys: vec![secret_key],
-        merkle_root: input_commitment, // With empty path, root = commitment
-        nullifiers: vec![nullifier],
-        output_commitments: vec![output_commitment],
-        asset_id,
-        fee_commitment: Fr::from(0u64),
-    }
+    TransferCircuit::test_circuit()
 }
 
 /// Generate proving and verifying keys for a 1-input-1-output transfer circuit
@@ -196,8 +160,25 @@ pub fn zk_types_to_proof(zk_proof: &zk_types::Groth16Proof) -> Result<Proof<Bn25
     Ok(Proof { a, b, c })
 }
 
-/// Build a TransferCircuit from witness JSON
+/// Build a TransferCircuit from witness JSON.
+///
+/// JSON schema for each input note:
+///   { "value": u64, "asset_id": "0x...", "blinding": "0x...",
+///     "nullifier_key": "0x...",
+///     "owner_pubkey": "0x..." (optional; if zero, derived as Poseidon_t2(nullifier_key)),
+///     "merkle_path": ["0x...", ...], "merkle_indices": [0|1, ...] }
+///
+/// JSON schema for each output note:
+///   { "value": u64, "asset_id": "0x...", "blinding": "0x...",
+///     "recipient_pubkey": "0x..." }
+///
+/// Commitments and nullifiers are computed with Poseidon (matching the circuit).
+/// The Merkle root is computed by walking the provided path with Poseidon hash_pair.
+/// The circuit normalises all paths to TREE_DEPTH inside generate_constraints.
 pub fn build_circuit_from_witness(witness_json: &serde_json::Value) -> Result<TransferCircuit> {
+    use zc_crypto::poseidon::poseidon_hash;
+    use transfer_circuit::TREE_DEPTH;
+
     let input_notes_json = witness_json["input_notes"].as_array()
         .ok_or_else(|| anyhow::anyhow!("Missing input_notes"))?;
 
@@ -226,43 +207,41 @@ pub fn build_circuit_from_witness(witness_json: &serde_json::Value) -> Result<Tr
         let asset_id = hex_to_fr(note_json["asset_id"].as_str().unwrap_or("0x0"))?;
         let blinding = hex_to_fr(note_json["blinding"].as_str().unwrap_or("0x0"))?;
         let nullifier_key = hex_to_fr(note_json["nullifier_key"].as_str().unwrap_or("0x0"))?;
-        let owner_pubkey = hex_to_fr(note_json["owner_pubkey"].as_str().unwrap_or("0x0"))?;
 
-        let note = Note {
-            value,
-            asset_id,
-            blinding,
-            owner_pubkey,
+        // If owner_pubkey is missing or zero, derive it from the nullifier_key so
+        // the spend-authority constraint (owner_pubkey == Poseidon_t2(sk)) is satisfied.
+        let owner_pubkey_raw = hex_to_fr(note_json["owner_pubkey"].as_str().unwrap_or("0x0"))?;
+        let owner_pubkey = if owner_pubkey_raw == Fr::from(0u64) {
+            poseidon_hash(&[nullifier_key])
+        } else {
+            owner_pubkey_raw
         };
 
-        // Compute nullifier using circuit logic (commitment + secret_key)
-        let value_fr = Fr::from(value);
-        let commitment = value_fr + asset_id + blinding + owner_pubkey;
-        let nullifier = commitment + nullifier_key;
+        let note = Note { value, asset_id, blinding, owner_pubkey };
+
+        // Commitment and nullifier via Poseidon (matching Note::commitment / Note::nullifier)
+        let nullifier = note.nullifier(nullifier_key);
 
         input_notes.push(note);
         secret_keys.push(nullifier_key);
         nullifiers.push(nullifier);
 
         // Parse Merkle path
-        let path_json = note_json["merkle_path"].as_array()
+        let path_vec = note_json["merkle_path"].as_array()
             .map(|arr| arr.iter()
                 .filter_map(|v| v.as_str())
                 .filter_map(|s| hex_to_fr(s).ok())
                 .collect::<Vec<_>>())
             .unwrap_or_default();
 
-        let indices_json = note_json["merkle_indices"].as_array()
+        let indices_vec = note_json["merkle_indices"].as_array()
             .map(|arr| arr.iter()
                 .filter_map(|v| v.as_u64())
                 .map(|i| i != 0)
                 .collect::<Vec<_>>())
             .unwrap_or_default();
 
-        merkle_paths.push(MerklePath {
-            path: path_json,
-            indices: indices_json,
-        });
+        merkle_paths.push(MerklePath { path: path_vec, indices: indices_vec });
     }
 
     let mut output_notes = Vec::new();
@@ -278,44 +257,35 @@ pub fn build_circuit_from_witness(witness_json: &serde_json::Value) -> Result<Tr
         let blinding = hex_to_fr(note_json["blinding"].as_str().unwrap_or("0x0"))?;
         let recipient_pubkey = hex_to_fr(note_json["recipient_pubkey"].as_str().unwrap_or("0x0"))?;
 
-        let note = Note {
-            value,
-            asset_id,
-            blinding,
-            owner_pubkey: recipient_pubkey,
-        };
-
-        let value_fr = Fr::from(value);
-        let commitment = value_fr + asset_id + blinding + recipient_pubkey;
+        let note = Note { value, asset_id, blinding, owner_pubkey: recipient_pubkey };
+        let commitment = note.commitment();
 
         output_notes.push(note);
         output_commitments.push(commitment);
     }
 
-    // Compute merkle root from first input
-    let merkle_root = if !input_notes.is_empty() && !merkle_paths.is_empty() {
+    // Compute the Merkle root.  The circuit pads paths to exactly TREE_DEPTH, so
+    // we replicate that: start from the leaf commitment and hash up TREE_DEPTH levels
+    // (using the provided siblings for non-empty positions, zero for the rest).
+    let merkle_root = if !input_notes.is_empty() {
         let note = &input_notes[0];
         let path = &merkle_paths[0];
-        let value_fr = Fr::from(note.value);
-        let mut current = value_fr + note.asset_id + note.blinding + note.owner_pubkey;
-
-        for (sibling, &is_right) in path.path.iter().zip(path.indices.iter()) {
-            if is_right {
-                current = *sibling + current;
+        let mut cur = note.commitment();
+        for i in 0..TREE_DEPTH {
+            let sibling = path.path.get(i).copied().unwrap_or(Fr::from(0u64));
+            let is_right = path.indices.get(i).copied().unwrap_or(false);
+            cur = if is_right {
+                poseidon_hash(&[sibling, cur])
             } else {
-                current = current + *sibling;
-            }
+                poseidon_hash(&[cur, sibling])
+            };
         }
-        current
+        cur
     } else {
         Fr::from(0u64)
     };
 
-    let asset_id = if !input_notes.is_empty() {
-        input_notes[0].asset_id
-    } else {
-        Fr::from(0u64)
-    };
+    let asset_id = input_notes.first().map(|n| n.asset_id).unwrap_or(Fr::from(0u64));
 
     Ok(TransferCircuit {
         input_notes,
@@ -347,20 +317,28 @@ fn hex_to_fr(hex: &str) -> Result<Fr> {
     Ok(Fr::from_le_bytes_mod_order(&padded))
 }
 
-/// Extract public inputs from a circuit for verification
+/// Extract public inputs from a circuit for verification.
+///
+/// Order and arity MUST match the `new_input` allocations in
+/// `TransferCircuit::generate_constraints`:
+///   [merkle_root, nullifiers×MAX_INPUTS, output_commitments×MAX_OUTPUTS, asset_id, fee_commitment]
+///
+/// Slots beyond the actual note count are padded with zero.
 pub fn extract_public_inputs(circuit: &TransferCircuit) -> Vec<Fr> {
+    use transfer_circuit::{MAX_INPUTS, MAX_OUTPUTS};
     let mut inputs = Vec::new();
 
-    // Order MUST match the circuit's new_input allocation order in generate_constraints:
-    // 1. merkle_root
     inputs.push(circuit.merkle_root);
-    // 2. each nullifier
-    inputs.extend(circuit.nullifiers.iter().copied());
-    // 3. each output_commitment
-    inputs.extend(circuit.output_commitments.iter().copied());
-    // 4. asset_id
+
+    for i in 0..MAX_INPUTS {
+        inputs.push(circuit.nullifiers.get(i).copied().unwrap_or(Fr::from(0u64)));
+    }
+
+    for i in 0..MAX_OUTPUTS {
+        inputs.push(circuit.output_commitments.get(i).copied().unwrap_or(Fr::from(0u64)));
+    }
+
     inputs.push(circuit.asset_id);
-    // 5. fee_commitment
     inputs.push(circuit.fee_commitment);
 
     inputs

@@ -3,6 +3,8 @@
 //! Proves: "I am a validator in the active set for epoch E, slot S"
 //! Without revealing: Which specific validator I am
 //!
+//! **EXPERIMENTAL — not security-audited, disabled in production builds.**
+//!
 //! Public inputs:
 //! - validator_root: Merkle root of active validator credentials
 //! - epoch: Current epoch number

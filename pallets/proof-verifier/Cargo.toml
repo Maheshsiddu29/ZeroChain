@@ -13,6 +13,7 @@ frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = 
 frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = false }
 zk-types = { path = "../../primitives/zk-types", default-features = false }
+zc-groth16-io = { path = "../../zc-groth16-io", default-features = false }
 
 # Arkworks — only compiled for native (std) builds, NOT for WASM
 ark-ff = { workspace = true, optional = true }
@@ -29,6 +30,9 @@ sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8
 sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
 sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", rev = "02ec8d4", default-features = true }
 pallet-shielded-assets = { path = "../shielded-assets", default-features = true }
+pallet-balances = { workspace = true, default-features = true }
+transfer-circuit = { path = "../../circuits/transfer" }
+zc-crypto = { workspace = true, default-features = true }
 hex = "0.4"
 serde_json = "1.0"
 
@@ -41,6 +45,7 @@ std = [
     "frame-system/std",
     "sp-runtime/std",
     "zk-types/std",
+    "zc-groth16-io/std",
     "ark-ff/std",
     "ark-ec/std",
     "ark-bn254/std",
@@ -57,6 +62,9 @@ std = [
     "ark-relations",
     "ark-snark",
 ]
+# Feature flag: enables stub routing for ValidatorMembership, StateLineage, Slashing.
+# Without this flag, submit_proof rejects every non-ShieldedTransfer variant.
+experimental = []
 runtime-benchmarks = [
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",

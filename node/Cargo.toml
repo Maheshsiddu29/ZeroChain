@@ -46,6 +46,7 @@ sp-block-builder = { workspace = true, default-features = true }
 sp-blockchain = { workspace = true, default-features = true }
 sp-inherents = { workspace = true, default-features = true }
 sp-io = { workspace = true, default-features = true }
+zc-groth16-io = { path = "../zc-groth16-io" }
 sp-keyring = { workspace = true, default-features = true }
 sp-runtime = { workspace = true, default-features = true }
 sp-timestamp = { workspace = true, default-features = true }
@@ -86,3 +87,19 @@ try-runtime = [
 	"solochain-template-runtime/try-runtime",
 	"sp-runtime/try-runtime",
 ]
+
+[dev-dependencies]
+hex = { workspace = true }
+zc-crypto = { workspace = true, features = ["std"] }
+sc-executor-common = { workspace = true }
+pallet-proof-verifier = { path = "../pallets/proof-verifier" }
+pallet-shielded-assets = { path = "../pallets/shielded-assets" }
+zk-types = { workspace = true, features = ["std"] }
+frame-support = { workspace = true, default-features = true }
+transfer-circuit = { path = "../circuits/transfer" }
+ark-bn254 = { workspace = true, features = ["std"] }
+ark-groth16 = { workspace = true, features = ["std"] }
+ark-snark = { workspace = true }
+ark-serialize = { workspace = true, features = ["std"] }
+ark-std = { workspace = true, features = ["std"] }
+codec = { workspace = true, features = ["std"] }

@@ -8,10 +8,14 @@ description = "Zero Chain ZK Proof Generator"
 name = "zk-prover"
 path = "src/main.rs"
 
+[[bin]]
+name = "generate-testnet-setup"
+path = "src/bin/generate_testnet_setup.rs"
+
 [dependencies]
 # CLI
-clap = { version = "4.4", features = ["derive"] }
-env_logger = "0.10"
+clap = { version = "4.6.1", features = ["derive"] }
+env_logger = "0.11.10"
 log = { workspace = true }
 
 # Serialization
@@ -34,13 +38,14 @@ ark-relations = { workspace = true }
 ark-r1cs-std = { workspace = true }
 
 # Hashing
-sha2 = "0.10"
+sha2 = "0.11.0"
 
 # Error handling
 anyhow = { workspace = true }
 
 # Local dependencies
 zk-types = { workspace = true }
+zc-crypto = { workspace = true }
 transfer-circuit = { path = "../circuits/transfer" }
 origin-circuit = { path = "../circuits/origin" }
 
@@ -59,7 +64,8 @@ std = [
     "ark-relations/std",
     "ark-r1cs-std/std",
     "zk-types/std",
+    "zc-crypto/std",
 ]
 
 [dev-dependencies]
-tempfile = "3"
+tempfile = "3.27.0"

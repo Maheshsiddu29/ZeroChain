@@ -170,6 +170,19 @@ mod runtime {
 	#[runtime::pallet_index(9)]
 	pub type ShieldedAssets = pallet_shielded_assets;
 
+	#[cfg(feature = "experimental")]
 	#[runtime::pallet_index(10)]
 	pub type ZkValidator = pallet_zk_validator;
+
+	#[cfg(feature = "experimental")]
+	#[runtime::pallet_index(11)]
+	pub type ZkStaking = pallet_zk_staking;
+
+	#[cfg(feature = "experimental")]
+	#[runtime::pallet_index(12)]
+	pub type BlsConsensus = pallet_bls_consensus;
+
+	#[cfg(feature = "experimental")]
+	#[runtime::pallet_index(13)]
+	pub type ZkBridge = pallet_zk_bridge;
 }

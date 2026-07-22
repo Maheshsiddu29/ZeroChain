@@ -1,43 +1,68 @@
 [package]
-name = "zero-chain-cli"
+name = "zerochain-cli"
 version = "0.1.0"
 edition = "2021"
-description = "Zero Chain Command Line Interface"
-
-[[bin]]
-name = "zero-chain"
-path = "src/main.rs"
+description = "Command-line interface for ZeroChain privacy operations"
+license = "Apache-2.0"
 
 [dependencies]
-# CLI framework
-clap = { version = "4.4", features = ["derive"] }
+# CLI
+structopt = "0.3"
+clap = "3.0"
 
-# Async runtime
-tokio = { version = "1.35", features = ["full"] }
-
-# HTTP client
-reqwest = { version = "0.11", features = ["json"] }
+# Async
+tokio = { version = "1", features = ["full"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+
+# Cryptography
 hex = "0.4"
+# H-09: keyfile encryption
+argon2 = "0.5"
+aes-gcm = "0.10"
+rand = "0.8"
+zeroize = { version = "1.7", features = ["derive"] }
+# Secure password prompt (no terminal echo)
+rpassword = "7.3"
+# Poseidon-based public key derivation
+zc-crypto = { workspace = true, features = ["std"] }
 
-# Logging
-env_logger = "0.10"
-log = "0.4"
+# Note-memo encryption: X25519 ECDH + HKDF-SHA256 + ChaCha20Poly1305
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+hkdf = "0.12"
+sha2 = "0.10"
+chacha20poly1305 = "0.10"
 
-# Color output
-colored = "2.1"
+# RPC — subxt 0.44.3 is the version polkadot-sdk rev 02ec8d4 uses internally
+# (frame-benchmarking-cli), so compatibility with CheckMetadataHash / AuthorizeCall
+# / WeightReclaim is guaranteed.  Signing via subxt-signer (no substrate-compat).
+subxt = "0.44"
+subxt-signer = { version = "0.44", features = ["sr25519"] }
+futures = "0.3"
+
+# ZK types and prover
+zk-types = { workspace = true, features = ["std"] }
+zk-prover = { path = "../prover" }
+transfer-circuit = { path = "../circuits/transfer" }
+codec = { workspace = true, features = ["derive"] }
+ark-ff = { workspace = true }
+ark-bn254 = { workspace = true }
+ark-serialize = { workspace = true }
 
 # Error handling
 anyhow = "1.0"
+thiserror = "1.0"
 
-# Local dependencies
-zc-crypto = { path = "../crypto" }
+# Logging
+log = "0.4"
+env_logger = "0.11"
 
-# Random
-rand = { version = "0.8", features = ["std", "std_rng"] }
+# Utilities
+colored = "2.0"
+indicatif = "0.17"
 
-# Zeroize for secret handling
-zeroize = "1.7"
+[dev-dependencies]
+tokio-test = "0.4"
+tempfile = "3"

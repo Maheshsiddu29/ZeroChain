@@ -1,0 +1,54 @@
+//! Integration tests for ZK-ORIGIN prover
+
+use ark_bn254::Fr;
+use ark_ff::PrimeField;
+
+// Import from the crate directly
+use prover::origin_prover::{StateTransition, OriginProof};
+
+#[test]
+fn test_prove_and_verify_1_block() {
+    let genesis = [0xAAu8; 32];
+    let genesis_fr = Fr::from_le_bytes_mod_order(&genesis);
+
+    let proof = OriginProof::generate(
+        vec![StateTransition::new(genesis_fr, Fr::from(1u64), 1)],
+        genesis,
+    )
+    .expect("Should generate proof");
+
+    assert!(proof.verify().is_ok());
+    assert!(proof.reject_if_tampered().is_ok());
+}
+
+#[test]
+fn test_prove_and_verify_100_blocks() {
+    let genesis = [0x01u8; 32];
+    let mut current = Fr::from_le_bytes_mod_order(&genesis);
+
+    let mut transitions = Vec::new();
+    for i in 1..=100 {
+        let next = Fr::from(i as u64 + 1000);
+        transitions.push(StateTransition::new(current, next, i));
+        current = next;
+    }
+
+    let proof = OriginProof::generate(transitions, genesis).expect("Should generate proof");
+
+    assert_eq!(proof.num_steps, 100);
+    assert!(proof.verify().is_ok());
+}
+
+#[test]
+fn test_reject_invalid_chain() {
+    let genesis = [0x01u8; 32];
+    let genesis_fr = Fr::from_le_bytes_mod_order(&genesis);
+
+    let transitions = vec![
+        StateTransition::new(genesis_fr, Fr::from(100u64), 1),
+        StateTransition::new(Fr::from(999u64), Fr::from(200u64), 2), // Mismatch!
+    ];
+
+    let result = OriginProof::generate(transitions, genesis);
+    assert!(result.is_err());
+}

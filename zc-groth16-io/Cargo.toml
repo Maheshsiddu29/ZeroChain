@@ -1,0 +1,33 @@
+[package]
+name = "zc-groth16-io"
+version = "0.1.0"
+edition = "2021"
+description = "Host function interface for real BN254 Groth16 verification in the WASM runtime"
+publish = false
+
+[dependencies]
+sp-runtime-interface = { workspace = true }
+codec = { package = "parity-scale-codec", version = "3.6", default-features = false, features = ["derive"] }
+
+# Arkworks — only pulled in for native (std) builds via the std feature gate.
+# On the WASM side the #[runtime_interface] macro emits FFI stubs instead.
+ark-ff = { workspace = true, optional = true }
+ark-bn254 = { workspace = true, optional = true }
+ark-groth16 = { workspace = true, optional = true }
+ark-serialize = { workspace = true, optional = true }
+ark-snark = { workspace = true, optional = true }
+
+[features]
+default = ["std"]
+std = [
+    "sp-runtime-interface/std",
+    "ark-ff",
+    "ark-ff/std",
+    "ark-bn254",
+    "ark-bn254/std",
+    "ark-groth16",
+    "ark-groth16/std",
+    "ark-serialize",
+    "ark-serialize/std",
+    "ark-snark",
+]

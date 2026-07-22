@@ -1,0 +1,16 @@
+[package]
+name = "zc-dandelion"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+sc-network = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "master" }
+sc-network-common = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "master" }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", branch = "master" }
+tokio = { version = "1.40", features = ["full"] }
+rand = "0.8"
+log = "0.4"
+hex = "0.4"
+
+[dev-dependencies]
+tokio-test = "0.4"

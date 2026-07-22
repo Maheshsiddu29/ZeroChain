@@ -5,6 +5,8 @@
 extern crate alloc;
 use alloc::vec::Vec;
 use alloc::boxed::Box;
+
+pub use sp_runtime::DispatchResult;
 use codec::{Decode, DecodeWithMemTracking, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;
 
@@ -23,10 +25,16 @@ pub type AssetId = [u8; 32];
 /// implemented by pallet-shielded-assets, called by pallet-proof-verifier
 /// after groth16 verification passes. lives here to avoid circular deps.
 pub trait ShieldedTransferHandler {
-    fn process_verified_transfer(inputs: &TransferPublicInputs);
+    fn process_verified_transfer(inputs: &TransferPublicInputs) -> sp_runtime::DispatchResult;
 }
 
-//  groth16 proof (bn254, uncompressed, 256 bytes total) 
+/// implemented by pallet-zk-staking, called by pallet-proof-verifier
+/// after slashing fraud proof verification passes.
+pub trait StakingHandler {
+    fn process_slash(inputs: &SlashingPublicInputs);
+}
+
+//  groth16 proof (bn254, uncompressed, 256 bytes total)
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
 pub struct Groth16Proof {
@@ -35,14 +43,14 @@ pub struct Groth16Proof {
     pub c: [u8; G1_UNCOMPRESSED_SIZE],
 }
 
-//  halo2 proof (variable size, typically 1-5kb) 
+//  halo2 proof (variable size, typically 1-5kb)
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct Halo2Proof {
     pub proof_bytes: Vec<u8>,
 }
 
-//  nova proof (zk-origin state lineage) 
+//  nova proof (zk-origin state lineage)
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct NovaProof {
@@ -50,7 +58,7 @@ pub struct NovaProof {
     pub block_height: u64,
 }
 
-//  public inputs for shielded transfers 
+//  public inputs for shielded transfers
 // order must match the circuit: merkle_root, nullifiers, commitments, asset_id, fee
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
@@ -62,7 +70,7 @@ pub struct TransferPublicInputs {
     pub fee_commitment: Hash256,
 }
 
-//  public inputs for validator membership proofs 
+//  public inputs for validator membership proofs
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct MembershipPublicInputs {
@@ -71,7 +79,7 @@ pub struct MembershipPublicInputs {
     pub slot: u64,
 }
 
-//  public inputs for zk-origin state lineage 
+//  public inputs for zk-origin state lineage
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub struct OriginPublicInputs {
@@ -79,9 +87,49 @@ pub struct OriginPublicInputs {
     pub new_state_root: Hash256,
     pub block_height: u64,
     pub genesis_hash: Hash256,
+    pub num_steps: u64,
 }
 
-//  on-chain verifying keys 
+//  public inputs for equivocation slashing proofs
+
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
+pub struct SlashingPublicInputs {
+    pub validator_root: Hash256,
+    pub nullifier: Hash256,
+    pub block_hash_1: Hash256,
+    pub block_hash_2: Hash256,
+}
+
+//  bridge message types for cross-chain messaging with ZK-ORIGIN
+
+/// A cross-chain bridge message with origin proof.
+/// The origin proof cryptographically verifies the message
+/// actually came from the claimed source chain.
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
+pub struct BridgeMessage {
+    pub source_chain_id: u32,
+    pub message_hash: Hash256,
+    pub payload: Vec<u8>,
+    pub nonce: u64,
+}
+
+/// Public inputs for bridge origin verification.
+/// Proves a message genuinely originated from the source chain's state machine.
+#[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
+pub struct BridgeOriginInputs {
+    pub source_chain_id: u32,
+    pub source_state_root: Hash256,
+    pub message_hash: Hash256,
+    pub nonce: u64,
+}
+
+/// Implemented by pallet-zk-bridge, called by pallet-proof-verifier
+/// after bridge origin proof verification passes.
+pub trait BridgeHandler {
+    fn process_verified_message(message: &BridgeMessage, inputs: &BridgeOriginInputs);
+}
+
+//  on-chain verifying keys
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub enum VerifyingKey {
@@ -94,9 +142,13 @@ pub enum VerifyingKey {
 pub struct ShieldedTransferData {
     pub proof: Groth16Proof,
     pub inputs: TransferPublicInputs,
+    /// Encrypted note memos, one per real output commitment (positionally matched).
+    /// Each entry: X25519_ephemeral_pk(32) || ChaCha20Poly1305_nonce(12) || ciphertext(96) = 140 bytes.
+    /// Extracted and stored by the pallet AFTER verification; never passed to the verifier.
+    pub memos: Vec<Vec<u8>>,
 }
 
-//  proof submission envelope (what the extrinsic receives) 
+//  proof submission envelope (what the extrinsic receives)
 
 #[derive(Clone, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 pub enum ProofSubmission {
@@ -109,15 +161,20 @@ pub enum ProofSubmission {
         proof: NovaProof,
         inputs: OriginPublicInputs,
     },
+    Slashing {
+        proof: Groth16Proof,
+        inputs: SlashingPublicInputs,
+    },
 }
 
-//  proof type tag for storage key lookups 
+//  proof type tag for storage key lookups
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Encode, Decode, DecodeWithMemTracking, TypeInfo, MaxEncodedLen)]
 pub enum ProofType {
     Groth16Transfer,
     Halo2Membership,
     NovaOrigin,
+    Groth16Slashing,
 }
 
 pub const NATIVE_ASSET_ID: AssetId = [0u8; 32];
@@ -179,6 +236,7 @@ mod tests {
                 asset_id: NATIVE_ASSET_ID,
                 fee_commitment: [0xFF; 32],
             },
+            memos: vec![],
         }));
         let encoded = submission.encode();
         let decoded = ProofSubmission::decode(&mut &encoded[..]).unwrap();
@@ -212,9 +270,23 @@ mod tests {
             new_state_root: [0x33; 32],
             block_height: 1000,
             genesis_hash: [0x00; 32],
+            num_steps: 100,
         };
         let encoded = inputs.encode();
         let decoded = OriginPublicInputs::decode(&mut &encoded[..]).unwrap();
+        assert_eq!(inputs, decoded);
+    }
+
+    #[test]
+    fn slashing_public_inputs_round_trip() {
+        let inputs = SlashingPublicInputs {
+            validator_root: [0x11; 32],
+            nullifier: [0x22; 32],
+            block_hash_1: [0x33; 32],
+            block_hash_2: [0x44; 32],
+        };
+        let encoded = inputs.encode();
+        let decoded = SlashingPublicInputs::decode(&mut &encoded[..]).unwrap();
         assert_eq!(inputs, decoded);
     }
 
@@ -234,5 +306,31 @@ mod tests {
     #[test]
     fn native_asset_id_is_all_zeros() {
         assert_eq!(NATIVE_ASSET_ID, [0u8; 32]);
+    }
+
+    #[test]
+    fn bridge_message_round_trip() {
+        let msg = BridgeMessage {
+            source_chain_id: 1,
+            message_hash: [0x55; 32],
+            payload: vec![1, 2, 3, 4],
+            nonce: 42,
+        };
+        let encoded = msg.encode();
+        let decoded = BridgeMessage::decode(&mut &encoded[..]).unwrap();
+        assert_eq!(msg, decoded);
+    }
+
+    #[test]
+    fn bridge_origin_inputs_round_trip() {
+        let inputs = BridgeOriginInputs {
+            source_chain_id: 2,
+            source_state_root: [0x66; 32],
+            message_hash: [0x77; 32],
+            nonce: 100,
+        };
+        let encoded = inputs.encode();
+        let decoded = BridgeOriginInputs::decode(&mut &encoded[..]).unwrap();
+        assert_eq!(inputs, decoded);
     }
 }

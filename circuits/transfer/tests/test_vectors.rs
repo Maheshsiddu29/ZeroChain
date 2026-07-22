@@ -13,11 +13,18 @@ use transfer_circuit::TransferCircuit;
 
 #[test]
 fn test_circuit_basic() {
+    // Previously this test used field-addition placeholder formulas.  Now that
+    // the circuit uses real Poseidon the witness must be derived via Poseidon:
+    //   • owner_pubkey  = Poseidon_t2(sk)          (spend authority)
+    //   • commitment    = Poseidon_t5(pk, v, a, b) (Note::commitment)
+    //   • nullifier     = Poseidon_t3(cm, sk)       (Note::nullifier)
+    //   • merkle_root   = 32-level hash from leaf   (path padded to TREE_DEPTH)
     use ark_relations::r1cs::ConstraintSystem;
     use ark_ff::UniformRand;
     use rand::SeedableRng;
     use rand::rngs::StdRng;
-    use transfer_circuit::{Note, MerklePath};
+    use transfer_circuit::{Note, MerklePath, TREE_DEPTH};
+    use zc_crypto::poseidon::poseidon_hash;
 
     let mut rng = StdRng::seed_from_u64(0);
     let cs = ConstraintSystem::<Fr>::new_ref();
@@ -25,33 +32,43 @@ fn test_circuit_basic() {
     let secret_key = Fr::rand(&mut rng);
     let asset_id = Fr::from(0u64);
 
+    // Derive owner_pubkey so spend-authority constraint is satisfied.
+    let owner_pubkey = poseidon_hash(&[secret_key]);
+
     let input_note = Note {
         value: 100,
         asset_id,
         blinding: Fr::rand(&mut rng),
-        owner_pubkey: Fr::rand(&mut rng),
+        owner_pubkey,
     };
 
     let output_note = Note {
         value: 100,
         asset_id,
         blinding: Fr::rand(&mut rng),
-        owner_pubkey: Fr::rand(&mut rng),
+        owner_pubkey: Fr::rand(&mut rng),  // output owner is independent
     };
 
-    let input_value_fr = Fr::from(input_note.value);
-    let input_commitment = input_value_fr + input_note.asset_id + input_note.blinding + input_note.owner_pubkey;
-    let nullifier = input_commitment + secret_key;
+    // Use Note::commitment() and Note::nullifier() (real Poseidon).
+    let input_commitment = input_note.commitment();
+    let nullifier = input_note.nullifier(secret_key);
+    let output_commitment = output_note.commitment();
 
-    let output_value_fr = Fr::from(output_note.value);
-    let output_commitment = output_value_fr + output_note.asset_id + output_note.blinding + output_note.owner_pubkey;
+    // generate_constraints pads all paths to TREE_DEPTH, so compute the correct root.
+    let merkle_root = {
+        let mut cur = input_commitment;
+        for _ in 0..TREE_DEPTH {
+            cur = poseidon_hash(&[cur, Fr::from(0u64)]);
+        }
+        cur
+    };
 
     let circuit = TransferCircuit {
         input_notes: vec![input_note],
         output_notes: vec![output_note],
         merkle_paths: vec![MerklePath { path: vec![], indices: vec![] }],
         secret_keys: vec![secret_key],
-        merkle_root: input_commitment,
+        merkle_root,
         nullifiers: vec![nullifier],
         output_commitments: vec![output_commitment],
         asset_id,

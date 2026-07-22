@@ -21,8 +21,14 @@ scale-info = { features = ["derive", "serde"], workspace = true }
 serde_json = { workspace = true, default-features = false, features = ["alloc"] }
 pallet-proof-verifier = { path = "../pallets/proof-verifier", default-features = false }
 pallet-shielded-assets = { path = "../pallets/shielded-assets", default-features = false }
-pallet-zk-validator = { path = "../pallets/zk-validator", default-features = false }
 getrandom = { version = "0.2.15", default-features = false, features = ["custom"] }
+# Experimental/research pallets — always compiled but only registered in the runtime
+# when the "experimental" feature flag is set. Absent from RuntimeCall/RuntimeEvent
+# in production; linker dead-strips unreachable pallet code from the WASM binary.
+pallet-zk-validator = { path = "../pallets/zk-validator", default-features = false }
+pallet-zk-staking = { path = "../pallets/zk-staking", default-features = false }
+pallet-bls-consensus = { path = "../pallets/bls-consensus", default-features = false }
+pallet-zk-bridge = { path = "../pallets/zk-bridge", default-features = false }
 
 
 # frame
@@ -109,9 +115,16 @@ std = [
 	"substrate-wasm-builder",
 	"pallet-proof-verifier/std",
 	"pallet-shielded-assets/std",
-	"pallet-zk-validator/std",
 	"getrandom/std",
+	"pallet-zk-validator/std",
+	"pallet-zk-staking/std",
+	"pallet-bls-consensus/std",
+	"pallet-zk-bridge/std",
 ]
+# Feature flag: registers experimental pallets in the runtime and enables their
+# Config impls. Also enables stub proof-type routing in proof-verifier.
+# Does NOT change which crates are compiled (they always are).
+experimental = ["pallet-proof-verifier/experimental"]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
@@ -127,6 +140,9 @@ runtime-benchmarks = [
 	"pallet-proof-verifier/runtime-benchmarks",
 	"pallet-shielded-assets/runtime-benchmarks",
 	"pallet-zk-validator/runtime-benchmarks",
+	"pallet-zk-staking/runtime-benchmarks",
+	"pallet-bls-consensus/runtime-benchmarks",
+	"pallet-zk-bridge/runtime-benchmarks",
 ]
 try-runtime = [
 	"frame-executive/try-runtime",
@@ -144,6 +160,9 @@ try-runtime = [
 	"pallet-proof-verifier/try-runtime",
 	"pallet-shielded-assets/try-runtime",
 	"pallet-zk-validator/try-runtime",
+	"pallet-zk-staking/try-runtime",
+	"pallet-bls-consensus/try-runtime",
+	"pallet-zk-bridge/try-runtime",
 ]
 
 # Enable the metadata hash generation.

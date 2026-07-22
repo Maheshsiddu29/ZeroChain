@@ -17,7 +17,11 @@ pub mod poseidon;
 
 // Re-export commonly used types
 pub use commitment::NoteCommitment;
-pub use merkle::{MerkleTree, MerkleProof, TREE_DEPTH};
+#[cfg(any(feature = "poseidon", feature = "std"))]
+pub use commitment::note_commitment;
+pub use merkle::TREE_DEPTH;
+#[cfg(feature = "std")]
+pub use merkle::{MerkleTree, MerkleProof};
 pub use nullifier::NullifierDeriver;
 pub use poseidon::{PoseidonHasher, Hash256};
 

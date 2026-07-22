@@ -1,118 +1,101 @@
-//! Zero Chain CLI
-//!
-//! User-facing command-line tool for interacting with Zero Chain
+//! ZeroChain CLI - Main entry point
 
-use clap::{Parser, Subcommand};
-use colored::Colorize;
-use std::path::PathBuf;
-
+mod chain;
 mod commands;
+mod handlers;
+mod memo;
+mod note_store;
 mod rpc;
 mod wallet;
 
-use commands::*;
-
-#[derive(Parser)]
-#[command(name = "zero-chain")]
-#[command(version = "0.1.0")]
-#[command(about = "Zero Chain CLI - Private blockchain interactions")]
-struct Cli {
-    /// WebSocket URL of the Zero Chain node
-    #[arg(long, default_value = "ws://127.0.0.1:9944", global = true)]
-    url: String,
-
-    /// Enable verbose output
-    #[arg(short, long, global = true)]
-    verbose: bool,
-
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Generate a new keypair
-    Keygen {
-        /// Output path for the keypair
-        #[arg(long, default_value = "keypair.json")]
-        output: PathBuf,
-    },
-
-    /// Create a witness file for a shielded transfer
-    CreateWitness {
-        /// Sender's secret key file
-        #[arg(long)]
-        sender_key: PathBuf,
-
-        /// Amount to send
-        #[arg(long)]
-        amount: u64,
-
-        /// Recipient's public key (hex)
-        #[arg(long)]
-        recipient: String,
-
-        /// Output path for witness file
-        #[arg(long, default_value = "witness.json")]
-        output: PathBuf,
-    },
-
-    /// Check if a nullifier has been spent
-    CheckNullifier {
-        /// Nullifier hash in hex
-        #[arg(long)]
-        nullifier: String,
-    },
-
-    /// Query validator set information
-    QueryValidators,
-
-    /// Check account balance
-    Balance {
-        /// Account address (SS58 format)
-        account: String,
-    },
-
-    /// Show node connection status
-    Status,
-}
+use commands::{Cli, Command};
+use handlers::*;
+use structopt::StructOpt;
+use anyhow::Result;
 
 #[tokio::main]
-async fn main() {
-    env_logger::Builder::from_env(
-        env_logger::Env::default().default_filter_or("warn")
-    ).init();
+async fn main() -> Result<()> {
+    env_logger::init();
 
-    let cli = Cli::parse();
+    let cli = Cli::from_args();
+    let rpc_endpoint = cli.get_rpc_endpoint();
 
-    if cli.verbose {
-        println!("{}", "Zero Chain CLI v0.1.0".bold().cyan());
-        println!("Node URL: {}\n", cli.url);
+    match cli.command {
+        Command::GenerateKeypair(opts) => handle_generate_keypair(opts)?,
+        Command::Keypair(opts) => handle_keypair(opts)?,
+        Command::Shield(opts) => handle_shield(opts, &rpc_endpoint).await?,
+        Command::Scan(opts) => handle_scan(opts, &rpc_endpoint).await?,
+        Command::Transfer(opts) => handle_transfer(opts, &rpc_endpoint).await?,
+        Command::SubmitShieldedTransfer(opts) => {
+            handle_submit_shielded_transfer(opts, &rpc_endpoint).await?
+        }
+        Command::RegisterValidator(opts) => {
+            handle_register_validator(opts, &rpc_endpoint).await?
+        }
+        Command::CheckNullifier(opts) => {
+            handle_check_nullifier(opts, &rpc_endpoint).await?
+        }
+        Command::QueryValidatorSet(opts) => {
+            handle_query_validator_set(opts, &rpc_endpoint).await?
+        }
+        Command::QueryValidator(opts) => {
+            handle_query_validator(opts, &rpc_endpoint).await?
+        }
+        Command::Balance(opts) => {
+            handle_balance(opts, &rpc_endpoint).await?
+        }
+        Command::SubmitSlashProof(opts) => {
+            handle_submit_slash_proof(opts, &rpc_endpoint).await?
+        }
+        Command::GenerateLineageProof(opts) => {
+            handle_generate_lineage_proof(opts).await?
+        }
+        Command::Monitor(opts) => {
+            handle_monitor(opts, &rpc_endpoint).await?
+        }
+        Command::UpdateRoot(opts) => {
+            handle_update_root(opts, &rpc_endpoint).await?
+        }
+        Command::SetVk(opts) => {
+            handle_set_vk(opts, &rpc_endpoint).await?
+        }
+        Command::ImportNote(opts) => handle_import_note(opts)?,
     }
 
-    let result = match cli.command {
-        Commands::Keygen { output } => {
-            cmd_keygen(output, cli.verbose).await
-        }
-        Commands::CreateWitness { sender_key, amount, recipient, output } => {
-            cmd_create_witness(sender_key, amount, recipient, output, cli.verbose).await
-        }
-        Commands::CheckNullifier { nullifier } => {
-            cmd_check_nullifier(&cli.url, nullifier, cli.verbose).await
-        }
-        Commands::QueryValidators => {
-            cmd_query_validators(&cli.url, cli.verbose).await
-        }
-        Commands::Balance { account } => {
-            cmd_balance(&cli.url, account, cli.verbose).await
-        }
-        Commands::Status => {
-            cmd_status(&cli.url, cli.verbose).await
-        }
+    Ok(())
+}
+
+fn handle_generate_keypair(opts: commands::GenerateKeypairOpts) -> Result<()> {
+    let kp = wallet::Keypair::generate();
+    let public_hex = hex::encode(kp.public);
+    kp.save_to_file(&opts.output)?;
+    println!("Keypair written to {}", opts.output.display());
+    println!("  ZK pubkey: 0x{}", public_hex);
+    Ok(())
+}
+
+async fn handle_balance(
+    opts: commands::BalanceOpts,
+    _rpc_endpoint: &str,
+) -> Result<()> {
+    let account_display = if opts.account.len() > 16 {
+        format!("{}...", &opts.account[..16])
+    } else {
+        opts.account.clone()
     };
+    println!("Account: {}", account_display);
+    println!("(Balance query not yet implemented — fund this account via the faucet or transfer)");
+    Ok(())
+}
 
-    if let Err(e) = result {
-        eprintln!("{} {}", "Error:".red().bold(), e);
-        std::process::exit(1);
-    }
+async fn handle_submit_slash_proof(
+    opts: commands::SubmitSlashProofOpts,
+    rpc_endpoint: &str,
+) -> Result<()> {
+    opts.validate()?;
+    let client = rpc::RpcClient::new(rpc_endpoint);
+    let proof_data = std::fs::read(&opts.proof)?;
+    let tx_hash = client.submit_extrinsic(&proof_data).await?;
+    println!("Slash proof submitted: {}", tx_hash);
+    Ok(())
 }
